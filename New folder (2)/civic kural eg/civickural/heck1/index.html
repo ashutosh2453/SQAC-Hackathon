@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart City Intelligence Platform</title>
+    <meta
+      name="description"
+      content="AI-powered civic problem detection and prioritization"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!--
+      SMART CITY INTELLIGENCE PLATFORM – Civic Problem Detection AI
+      Frontend-only SPA (hash router). No backend, no API calls.
+    -->
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="topbar">
+      <nav class="nav" aria-label="Primary">
+        <a class="brand" href="#/" aria-label="Go to landing page">
+          <!-- Animated Civic Kural Logo - Language Transition -->
+          <div class="brand__logo brandLogoTransition" aria-hidden="true">
+            <div class="brandLogoTransition__container">
+              <img
+                src="../civic kural english.jpeg"
+                alt="Civic Kural - English"
+                class="brandLogoTransition__img brandLogoTransition__img--eng"
+              />
+              <img
+                src="../civic kural hindi.jpeg"
+                alt="Civic Kural - Hindi"
+                class="brandLogoTransition__img brandLogoTransition__img--hindi"
+              />
+              <img
+                src="../civic kural tamil.jpeg"
+                alt="Civic Kural - Tamil"
+                class="brandLogoTransition__img brandLogoTransition__img--tamil"
+              />
+            </div>
+          </div>
+          <span class="brand__text">
+            <span class="brand__name">Smart City Intelligence Platform</span>
+            <span class="brand__tag">Civic Problem Detection AI</span>
+          </span>
+        </a>
+
+        <div class="nav__right">
+          <div class="nav__pill" id="sessionPill" aria-live="polite"></div>
+          <button class="btn btn--ghost" id="navLogoutBtn" type="button">
+            Logout
+          </button>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main" class="app" tabindex="-1">
+      <!-- Route content mounts here -->
+      <div id="appRoot"></div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer__inner">
+        <span class="muted"
+          >Frontend demo • Mock data only • No backend/API</span
+        >
+        <span class="muted">© <span id="year"></span> Smart City</span>
+      </div>
+    </footer>
+
+    <!-- Modal root -->
+    <div id="modalRoot" class="modalRoot" aria-hidden="true"></div>
+
+    <script defer src="./app.js"></script>
+  </body>
+</html>
