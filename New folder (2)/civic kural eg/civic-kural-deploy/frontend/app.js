@@ -213,6 +213,54 @@ const storage = {
 };
 
 // ----------------------------
+// Civic Rewards Points System
+// ----------------------------
+
+/**
+ * Calculate total points for a user based on their reports.
+ * Points structure:
+ * - Report submission: +10 points (base)
+ * - Verified status: +15 points
+ * - Resolved status: +25 points
+ */
+function calculateUserPoints(email, reports) {
+  const userReports = reports.filter((r) => r.reporter === email);
+
+  const reportCount = userReports.length;
+  const verifiedCount = userReports.filter((r) => r.status === "Verified").length;
+  const resolvedCount = userReports.filter((r) => r.status === "Resolved").length;
+
+  const reportPoints = reportCount * 10;
+  const verifiedPoints = verifiedCount * 15;
+  const resolvedPoints = resolvedCount * 25;
+  const total = reportPoints + verifiedPoints + resolvedPoints;
+
+  return {
+    total,
+    reportPoints,
+    verifiedPoints,
+    resolvedPoints,
+    reportCount,
+    verifiedCount,
+    resolvedCount,
+  };
+}
+
+/**
+ * Update points for a specific user in their session (if logged in).
+ * This is called after report submission or status changes.
+ */
+function updateUserPoints(email) {
+  const session = storage.getSession();
+  if (session && session.email === email && session.role === "citizen") {
+    const reports = storage.getReports();
+    const points = calculateUserPoints(email, reports);
+    session.points = points;
+    storage.setSession(session);
+  }
+}
+
+// ----------------------------
 // Router
 // ----------------------------
 
@@ -322,8 +370,8 @@ function openModal({ title, bodyHtml, actionsHtml }) {
   modalRoot.setAttribute("aria-hidden", "false");
   modalRoot.innerHTML = `
     <div class="modal" role="dialog" aria-modal="true" aria-label="${escapeHtml(
-      title,
-    )}">
+    title,
+  )}">
       <div class="modal__head">
         <h3 class="modal__title">${escapeHtml(title)}</h3>
         <button class="btn btn--ghost" type="button" data-modal-close>
@@ -376,15 +424,15 @@ function renderDashboardShell({ role, activePath, title, subtitle, contentHtml }
   const navItems =
     role === "citizen"
       ? [
-          { label: "Dashboard", path: "/citizen-dashboard", iconName: "user" },
-          { label: "Analytics", path: "/citizen-analytics", iconName: "spark" },
-          { label: "Reports", path: "/citizen-reports", iconName: "filter" },
-        ]
+        { label: "Dashboard", path: "/citizen-dashboard", iconName: "user" },
+        { label: "Analytics", path: "/citizen-analytics", iconName: "spark" },
+        { label: "Reports", path: "/citizen-reports", iconName: "filter" },
+      ]
       : [
-          { label: "Dashboard", path: "/authority-dashboard", iconName: "shield" },
-          { label: "Analytics", path: "/authority-analytics", iconName: "spark" },
-          { label: "Reports", path: "/authority-reports", iconName: "filter" },
-        ];
+        { label: "Dashboard", path: "/authority-dashboard", iconName: "shield" },
+        { label: "Analytics", path: "/authority-analytics", iconName: "spark" },
+        { label: "Reports", path: "/authority-reports", iconName: "filter" },
+      ];
 
   return `
     <section class="shell">
@@ -396,15 +444,15 @@ function renderDashboardShell({ role, activePath, title, subtitle, contentHtml }
           </div>
           <nav class="sideNav" aria-label="Dashboard pages">
             ${navItems
-              .map(
-                (i) => `
+      .map(
+        (i) => `
               <a class="sideNav__item ${activePath === i.path ? "is-active" : ""}" href="#${i.path}">
                 <span class="sideNav__icon">${icon(i.iconName)}</span>
                 <span class="sideNav__label">${escapeHtml(i.label)}</span>
               </a>
             `,
-              )
-              .join("")}
+      )
+      .join("")}
           </nav>
         </div>
       </aside>
@@ -454,8 +502,8 @@ function renderSummaryCards(cards) {
   return `
     <section class="grid grid--4">
       ${cards
-        .map(
-          (c) => `
+      .map(
+        (c) => `
         <div class="card">
           <div class="card__inner">
             <div class="rowBetween">
@@ -469,8 +517,8 @@ function renderSummaryCards(cards) {
           </div>
         </div>
       `,
-        )
-        .join("")}
+      )
+      .join("")}
     </section>
   `;
 }
@@ -560,8 +608,8 @@ function renderLineChart({ title, points }) {
           </svg>
           <div class="lineChart__labels">
             ${points
-              .map((p) => `<span class="mono">${escapeHtml(p.label)}</span>`)
-              .join("")}
+      .map((p) => `<span class="mono">${escapeHtml(p.label)}</span>`)
+      .join("")}
           </div>
         </div>
       </div>
@@ -612,17 +660,17 @@ function renderPieChart({ title, series }) {
           </svg>
           <div class="pieLegend">
             ${series
-              .map((s, idx) => {
-                const pct = Math.round((s.value / total) * 100);
-                return `
+      .map((s, idx) => {
+        const pct = Math.round((s.value / total) * 100);
+        return `
                   <div class="pieLegend__item">
                     <span class="dot" style="background:${colors[idx % colors.length]}"></span>
                     <span>${escapeHtml(s.key)}</span>
                     <span class="mono pieLegend__pct">${escapeHtml(pct)}%</span>
                   </div>
                 `;
-              })
-              .join("")}
+      })
+      .join("")}
           </div>
         </div>
       </div>
@@ -643,17 +691,17 @@ function renderHeatmap({ title, zones }) {
       <div class="card__inner">
         <div class="heatmap">
           ${zones
-            .map(
-              (z) => `
+      .map(
+        (z) => `
             <div class="heatmap__cell" style="--heat:${escapeHtml(z.heat)}" role="img" aria-label="${escapeHtml(
-              z.label,
-            )}: heat ${escapeHtml(z.heat)}">
+          z.label,
+        )}: heat ${escapeHtml(z.heat)}">
               <div class="heatmap__label">${escapeHtml(z.label)}</div>
               <div class="heatmap__meta mono">${escapeHtml(z.heat)}</div>
             </div>
           `,
-            )
-            .join("")}
+      )
+      .join("")}
         </div>
       </div>
     </div>
@@ -705,17 +753,17 @@ function renderLanding() {
             <div class="logoTransition" aria-label="Civic Kural logo in multiple languages">
               <div class="logoTransition__container">
                 <img
-                  src="../civic kural english.jpeg"
+                  src="./civic kural english.jpeg"
                   alt="Civic Kural - English"
                   class="logoTransition__img logoTransition__img--eng"
                 />
                 <img
-                  src="../civic kural hindi.jpeg"
+                  src="./civic kural hindi.jpeg"
                   alt="Civic Kural - Hindi"
                   class="logoTransition__img logoTransition__img--hindi"
                 />
                 <img
-                  src="../civic kural tamil.jpeg"
+                  src="./civic kural tamil.jpeg"
                   alt="Civic Kural - Tamil"
                   class="logoTransition__img logoTransition__img--tamil"
                 />
@@ -978,6 +1026,9 @@ function renderCitizenDashboard() {
   });
   const resolvedByCitizen = reports.filter((r) => r.status === "Resolved").length;
 
+  // Calculate rewards points
+  const points = calculateUserPoints(s.email, storage.getReports());
+
   const contentHtml = `
     <section class="stack">
       <div class="card card--shimmer">
@@ -990,18 +1041,47 @@ function renderCitizenDashboard() {
         </div>
         <div class="card__inner">
           ${renderSummaryCards([
-            { label: "Total Issues Reported", value: a.total, badge: "Reports" },
-            { label: "Issues Verified", value: a.verified, badge: "Verified" },
-            { label: "Issues Resolved", value: a.resolved, badge: "Resolved" },
-            { label: "Average Risk Score", value: `${a.avgRisk} / 100`, badge: "Risk" },
-          ])}
+    { label: "Total Issues Reported", value: a.total, badge: "Reports" },
+    { label: "Issues Verified", value: a.verified, badge: "Verified" },
+    { label: "Issues Resolved", value: a.resolved, badge: "Resolved" },
+    { label: "Average Risk Score", value: `${a.avgRisk} / 100`, badge: "Risk" },
+  ])}
+
+          <div class="card card--rewards" style="margin-top:14px;">
+            <div class="card__header">
+              <div>
+                <h3 class="card__title">Civic Rewards Points</h3>
+                <p class="card__sub">Earn points for meaningful civic participation.</p>
+              </div>
+              <div class="rewardsTotal">
+                <span class="rewardsTotal__value mono">${escapeHtml(points.total)}</span>
+                <span class="rewardsTotal__label">Total Points</span>
+              </div>
+            </div>
+            <div class="card__inner">
+              <div class="rewardsGrid">
+                <div class="rewardItem">
+                  <div class="rewardItem__val mono">${escapeHtml(points.reportCount)}</div>
+                  <div class="rewardItem__label">Report +10</div>
+                </div>
+                <div class="rewardItem">
+                  <div class="rewardItem__val mono">${escapeHtml(points.verifiedCount)}</div>
+                  <div class="rewardItem__label">Verified +15</div>
+                </div>
+                <div class="rewardItem">
+                  <div class="rewardItem__val mono">${escapeHtml(points.resolvedCount)}</div>
+                  <div class="rewardItem__label">Resolved +25</div>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="panel" style="margin-top:14px;">
             <div class="rowBetween">
               <div>
                 <strong>Your Impact</strong>
                 <p class="card__sub" style="margin-top:4px;">Your reports helped resolve <span class="mono">${escapeHtml(
-                  String(resolvedByCitizen || 6),
-                )}</span> civic issues (mock).</p>
+    String(resolvedByCitizen || 6),
+  )}</span> civic issues (mock).</p>
               </div>
               <span class="badge badge--resolved">Citizen trust &amp; transparency</span>
             </div>
@@ -1050,13 +1130,27 @@ function renderCitizenDashboard() {
                 <input id="fileInput" type="file" accept="image/*" hidden />
               </div>
 
-              <div class="grid" style="margin-top:14px;">
+              <div class="panel" style="margin-top:14px;">
+                <label for="issueTypeSelect" class="card__title" style="display:block; margin-bottom:8px;">Select Problem Type</label>
+                <select id="issueTypeSelect" class="inputField">
+                  <option value="">-- Choose a problem type --</option>
+                  <option value="Pothole">Pothole</option>
+                  <option value="Street Light Out">Street Light Out</option>
+                  <option value="Garbage Overflow">Garbage Overflow</option>
+                  <option value="Water Leakage">Water Leakage</option>
+                  <option value="Traffic Signal Fault">Traffic Signal Fault</option>
+                  <option value="Illegal Dumping">Illegal Dumping</option>
+                  <option value="Road Crack">Road Crack</option>
+                </select>
+              </div>
+
+              <div class="grid grid--assessment" style="margin-top:14px;">
                 <div class="panel">
                   <div class="rowBetween">
-                    <strong>Detected Issue</strong>
-                    <span class="badge"><span class="mono" id="issueLabel">—</span></span>
+                    <strong>Selected Problem</strong>
+                    <span class="badge" id="issueLabelPlaceholder">—</span>
                   </div>
-                  <p class="card__sub">Example placeholder: “Detected Issue: Pothole”</p>
+                  <p class="card__sub" style="margin-top:4px;" id="issueLabel">Example placeholder: “Detected Issue: Pothole”</p>
                 </div>
 
                 <div class="panel">
@@ -1125,12 +1219,11 @@ function renderCitizenDashboard() {
           </div>
           <div class="card__inner">
             <div class="stack" id="myReports">
-              ${
-                reports.length === 0
-                  ? `<div class="panel"><div class="muted">No reports yet. Upload an image and submit your first report.</div></div>`
-                  : reports
-                      .map(
-                        (r) => `
+              ${reports.length === 0
+      ? `<div class="panel"><div class="muted">No reports yet. Upload an image and submit your first report.</div></div>`
+      : reports
+        .map(
+          (r) => `
                   <div class="panel">
                     <div class="rowBetween">
                       <div>
@@ -1145,16 +1238,16 @@ function renderCitizenDashboard() {
                     <div class="divider"></div>
                     <div class="rowBetween">
                       <span class="muted">Severity: <span class="mono">${escapeHtml(r.severity)}%</span> (${escapeHtml(
-                        severityToLabel(r.severity),
-                      )})</span>
+            severityToLabel(r.severity),
+          )})</span>
                       <span class="muted">Risk: <span class="mono">${escapeHtml(r.riskScore)}</span>/100</span>
                     </div>
                     <div class="muted" style="margin-top:8px;">${escapeHtml(r.locationText)}</div>
                   </div>
                 `,
-                      )
-                      .join("")
-              }
+        )
+        .join("")
+    }
             </div>
           </div>
         </div>
@@ -1246,8 +1339,8 @@ function renderAuthorityDashboard() {
               <div class="muted">City Risk Status (mock)</div>
               <div style="margin-top:6px;">
                 <span class="riskStatus riskStatus--${escapeHtml(
-                  cityRisk.level,
-                )}"><span class="riskStatus__dot"></span>${escapeHtml(cityRisk.label)} Risk</span>
+    cityRisk.level,
+  )}"><span class="riskStatus__dot"></span>${escapeHtml(cityRisk.label)} Risk</span>
               </div>
               <p class="card__sub" style="margin-top:6px;">${escapeHtml(cityRisk.description)}</p>
             </div>
@@ -1255,8 +1348,8 @@ function renderAuthorityDashboard() {
               <strong>Resolved Today</strong>
               <div class="metric" style="margin-top:6px;">
                 <div class="metric__value"><span class="mono">${escapeHtml(
-                  String(resolvedToday.length),
-                )}</span></div>
+    String(resolvedToday.length),
+  )}</span></div>
                 <div class="metric__sub">Issues successfully closed (mock)</div>
               </div>
             </div>
@@ -1267,41 +1360,40 @@ function renderAuthorityDashboard() {
               <span class="badge badge--flagged">${icon("flag")} Highest risk first</span>
             </div>
             <div class="criticalList" style="margin-top:10px;">
-              ${
-                topCritical.length === 0
-                  ? `<div class="muted">No active critical issues at the moment (mock).</div>`
-                  : topCritical
-                      .map((r) => {
-                        const riskLevel =
-                          (r.riskScore || 0) >= 75
-                            ? "high"
-                            : (r.riskScore || 0) >= 40
-                              ? "medium"
-                              : "low";
-                        return `
+              ${topCritical.length === 0
+      ? `<div class="muted">No active critical issues at the moment (mock).</div>`
+      : topCritical
+        .map((r) => {
+          const riskLevel =
+            (r.riskScore || 0) >= 75
+              ? "high"
+              : (r.riskScore || 0) >= 40
+                ? "medium"
+                : "low";
+          return `
                           <div class="criticalList__item">
                             <div class="criticalList__main">
                               <span class="criticalList__label">${escapeHtml(r.issueType)}</span>
                               <span class="criticalList__meta mono">${escapeHtml(
-                                r.locationQuery || r.locationText || "Unknown",
-                              )}</span>
+            r.locationQuery || r.locationText || "Unknown",
+          )}</span>
                             </div>
                             <span class="criticalList__risk criticalList__risk--${escapeHtml(
-                              riskLevel,
-                            )}">${escapeHtml(String(r.riskScore || 0))}</span>
+            riskLevel,
+          )}">${escapeHtml(String(r.riskScore || 0))}</span>
                           </div>
                         `;
-                      })
-                      .join("")
-              }
+        })
+        .join("")
+    }
             </div>
           </div>
           ${renderSummaryCards([
-            { label: "Total Active Issues", value: active.length, badge: "Active" },
-            { label: "High Risk Issues", value: highRisk.length, badge: "Risk ≥ 75" },
-            { label: "Issues Resolved Today", value: resolvedToday.length, badge: "Today" },
-            { label: "False Reports Flagged", value: falseFlagged, badge: "Flagged" },
-          ])}
+      { label: "Total Active Issues", value: active.length, badge: "Active" },
+      { label: "High Risk Issues", value: highRisk.length, badge: "Risk ≥ 75" },
+      { label: "Issues Resolved Today", value: resolvedToday.length, badge: "Today" },
+      { label: "False Reports Flagged", value: falseFlagged, badge: "Flagged" },
+    ])}
           <div class="grid grid--2" style="margin-top:16px;">
             ${renderPieChart({ title: "Issue Type Distribution", series: byType.length ? byType : [{ key: "Pothole", value: 1 }] })}
             ${renderLineChart({ title: "Daily Incoming Reports (last 7 days)", points: incoming7 })}
@@ -1337,8 +1429,8 @@ function renderAuthorityDashboard() {
                 </thead>
                 <tbody id="issueRows">
                   ${ranked
-                    .map(
-                      (r) => `
+      .map(
+        (r) => `
                     <tr data-issue-id="${escapeHtml(r.id)}">
                       <td><span class="badge">#<span class="mono">${escapeHtml(r.priorityRank)}</span></span></td>
                       <td>
@@ -1352,8 +1444,8 @@ function renderAuthorityDashboard() {
                             <span class="badge">${escapeHtml(severityToLabel(r.severity))}</span>
                           </div>
                           <div class="miniProgress__bar"><div style="width:${escapeHtml(
-                            clamp(r.severity, 0, 100),
-                          )}%"></div></div>
+          clamp(r.severity, 0, 100),
+        )}%"></div></div>
                         </div>
                       </td>
                       <td><span class="badge"><span class="mono">${escapeHtml(r.riskScore)}</span>/100</span></td>
@@ -1362,8 +1454,8 @@ function renderAuthorityDashboard() {
                       <td>${statusBadge(r.status)}</td>
                     </tr>
                   `,
-                    )
-                    .join("")}
+      )
+      .join("")}
                 </tbody>
               </table>
             </div>
@@ -1571,7 +1663,9 @@ function wireCitizenDashboard() {
   const dropzone = $("#dropzone");
   const fileInput = $("#fileInput");
   const filePill = $("#filePill");
+  const issueTypeSelect = $("#issueTypeSelect");
   const issueLabel = $("#issueLabel");
+  const issueLabelPlaceholder = $("#issueLabelPlaceholder");
   const severityPct = $("#severityPct");
   const severityBar = $("#severityBar");
   const severityLabel = $("#severityLabel");
@@ -1584,34 +1678,52 @@ function wireCitizenDashboard() {
 
   function updateDraftUI() {
     if (isScanning) {
-      issueLabel.textContent = "Scanning…";
+      if (issueLabelPlaceholder) issueLabelPlaceholder.textContent = "Scanning…";
+      issueLabel.textContent = "Analyzing image and data…";
       severityPct.textContent = "0";
       severityBar.style.width = "0%";
       severityLabel.textContent = "Scanning";
       riskScore.textContent = "0";
     } else {
-      issueLabel.textContent = draft.issueType ? draft.issueType : "—";
+      if (issueLabelPlaceholder) issueLabelPlaceholder.textContent = draft.issueType ? "Detected" : "—";
+      issueLabel.textContent = draft.issueType ? `Detected Issue: ${draft.issueType}` : "—";
       severityPct.textContent = String(draft.severity);
       severityBar.style.width = `${draft.severity}%`;
       severityLabel.textContent = severityToLabel(draft.severity);
       riskScore.textContent = String(draft.riskScore);
     }
-    locationText.textContent = draft.locationText ? draft.locationText : "—";
+    const locTextElem = $("#locationText");
+    if (locTextElem) locTextElem.textContent = draft.locationText ? draft.locationText : "—";
 
-    const canSubmit = Boolean(draft.file && draft.locationText);
+    const canSubmit = Boolean(draft.file && draft.locationText && draft.issueType);
     reportBtn.disabled = !canSubmit;
   }
 
-  function simulateDetection() {
+  function simulateDetection(selectedType) {
     // Mock AI detection results
-    draft.issueType = issueTypes[Math.floor(Math.random() * issueTypes.length)];
+    draft.issueType = selectedType || issueTypes[Math.floor(Math.random() * issueTypes.length)];
     draft.severity = clamp(Math.round(25 + Math.random() * 70), 0, 100);
     draft.riskScore = computeRiskScore({
       severity: draft.severity,
       issueType: draft.issueType,
     });
+    if (issueTypeSelect) issueTypeSelect.value = draft.issueType;
     updateDraftUI();
   }
+
+  issueTypeSelect?.addEventListener("change", (e) => {
+    const val = e.target.value;
+    if (val) {
+      if (scanTimer) clearTimeout(scanTimer);
+      isScanning = true;
+      updateDraftUI();
+
+      scanTimer = setTimeout(() => {
+        isScanning = false;
+        simulateDetection(val);
+      }, 1500);
+    }
+  });
 
   function acceptFile(file) {
     if (!file) return;
@@ -1753,6 +1865,9 @@ function wireCitizenDashboard() {
     }));
     storage.setReports(updated);
 
+    // Award +10 points for report submission
+    updateUserPoints(s.email);
+
     openModal({
       title: "Issue reported (mock)",
       bodyHtml: `
@@ -1764,18 +1879,18 @@ function wireCitizenDashboard() {
           <div class="divider"></div>
           <div class="rowBetween">
             <span class="muted">Severity: <span class="mono">${escapeHtml(
-              newReport.severity,
-            )}%</span></span>
+        newReport.severity,
+      )}%</span></span>
             <span class="muted">Risk: <span class="mono">${escapeHtml(
-              newReport.riskScore,
-            )}</span>/100</span>
+        newReport.riskScore,
+      )}</span>/100</span>
           </div>
           <div class="muted" style="margin-top:8px;">Location: <span class="mono">${escapeHtml(
-            newReport.locationText,
-          )}</span></div>
+        newReport.locationText,
+      )}</span></div>
           <div class="muted" style="margin-top:8px;">Image: <span class="mono">${escapeHtml(
-            newReport.imageName,
-          )}</span></div>
+        newReport.imageName,
+      )}</span></div>
         </div>
       `,
       actionsHtml: `
@@ -1844,6 +1959,14 @@ function wireAuthorityDashboard() {
     const reports = storage.getReports();
     const updated = reports.map((r) => (r.id === id ? { ...r, status } : r));
     storage.setReports(updated);
+
+    // If status becomes Verified or Resolved, award points to the reporter
+    if (status === "Verified" || status === "Resolved") {
+      const report = reports.find((r) => r.id === id);
+      if (report && report.reporter) {
+        updateUserPoints(report.reporter);
+      }
+    }
   }
 
   // Row selection
@@ -1889,11 +2012,11 @@ function wireAuthorityDashboard() {
             <div class="divider"></div>
             <div class="rowBetween">
               <span class="muted">Severity: <span class="mono">${escapeHtml(
-                sel.severity,
-              )}%</span> (${escapeHtml(severityToLabel(sel.severity))})</span>
+        sel.severity,
+      )}%</span> (${escapeHtml(severityToLabel(sel.severity))})</span>
               <span class="muted">Risk: <span class="mono">${escapeHtml(
-                sel.riskScore,
-              )}</span>/100</span>
+        sel.riskScore,
+      )}</span>/100</span>
             </div>
             <div class="divider"></div>
             <div class="rowBetween">
@@ -1904,14 +2027,14 @@ function wireAuthorityDashboard() {
           <div class="panel">
             <div class="muted">Location</div>
             <div style="margin-top:6px;"><span class="mono">${escapeHtml(
-              sel.locationText,
-            )}</span></div>
+        sel.locationText,
+      )}</span></div>
           </div>
           <div class="panel">
             <div class="muted">Submitted</div>
             <div style="margin-top:6px;"><span class="mono">${escapeHtml(
-              formatDateTime(sel.createdAt),
-            )}</span></div>
+        formatDateTime(sel.createdAt),
+      )}</span></div>
           </div>
         </div>
       `,
@@ -1997,11 +2120,11 @@ function renderCitizenAnalytics() {
 
   const contentHtml = `
     ${renderSummaryCards([
-      { label: "Total Issues Reported", value: a.total, badge: "Reports" },
-      { label: "Issues Verified", value: a.verified, badge: "Verified" },
-      { label: "Issues Resolved", value: a.resolved, badge: "Resolved" },
-      { label: "Average Risk Score", value: `${a.avgRisk} / 100`, badge: "Risk" },
-    ])}
+    { label: "Total Issues Reported", value: a.total, badge: "Reports" },
+    { label: "Issues Verified", value: a.verified, badge: "Verified" },
+    { label: "Issues Resolved", value: a.resolved, badge: "Resolved" },
+    { label: "Average Risk Score", value: `${a.avgRisk} / 100`, badge: "Risk" },
+  ])}
     <div class="grid grid--2" style="margin-top:16px;">
       ${renderBarChart({ title: "Issues by Type", series: byType.length ? byType : [{ key: "Pothole", value: 0 }] })}
       ${renderLineChart({ title: "Reports over time", points })}
@@ -2049,12 +2172,11 @@ function renderCitizenReports() {
               </tr>
             </thead>
             <tbody>
-              ${
-                reports.length === 0
-                  ? `<tr><td colspan="6" class="muted">No reports yet.</td></tr>`
-                  : reports
-                      .map(
-                        (r) => `
+              ${reports.length === 0
+      ? `<tr><td colspan="6" class="muted">No reports yet.</td></tr>`
+      : reports
+        .map(
+          (r) => `
                   <tr>
                     <td><strong>${escapeHtml(r.issueType)}</strong></td>
                     <td class="tableTiny mono">${escapeHtml(formatDateTime(r.createdAt))}</td>
@@ -2064,9 +2186,9 @@ function renderCitizenReports() {
                     <td>${statusBadge(r.status)}</td>
                   </tr>
                 `,
-                      )
-                      .join("")
-              }
+        )
+        .join("")
+    }
             </tbody>
           </table>
         </div>
@@ -2111,11 +2233,11 @@ function renderAuthorityAnalytics() {
 
   const contentHtml = `
     ${renderSummaryCards([
-      { label: "Total Active Issues", value: active.length, badge: "Active" },
-      { label: "High Risk Issues", value: highRisk.length, badge: "Risk ≥ 75" },
-      { label: "Issues Resolved Today", value: resolvedToday.length, badge: "Today" },
-      { label: "False Reports Flagged", value: falseFlagged, badge: "Flagged" },
-    ])}
+    { label: "Total Active Issues", value: active.length, badge: "Active" },
+    { label: "High Risk Issues", value: highRisk.length, badge: "Risk ≥ 75" },
+    { label: "Issues Resolved Today", value: resolvedToday.length, badge: "Today" },
+    { label: "False Reports Flagged", value: falseFlagged, badge: "Flagged" },
+  ])}
     <div class="grid grid--2" style="margin-top:16px;">
       ${renderPieChart({ title: "Issue Type Distribution", series: byType.length ? byType : [{ key: "Pothole", value: 1 }] })}
       ${renderLineChart({ title: "Daily Incoming Reports", points: incoming })}
@@ -2161,8 +2283,8 @@ function renderAuthorityReports() {
             </thead>
             <tbody>
               ${reports
-                .map(
-                  (r) => `
+      .map(
+        (r) => `
                 <tr>
                   <td><strong>${escapeHtml(r.issueType)}</strong></td>
                   <td class="mono">${escapeHtml(r.severity)}%</td>
@@ -2172,8 +2294,8 @@ function renderAuthorityReports() {
                   <td class="tableTiny mono">${escapeHtml(formatDateTime(r.createdAt))}</td>
                 </tr>
               `,
-                )
-                .join("")}
+      )
+      .join("")}
             </tbody>
           </table>
         </div>
