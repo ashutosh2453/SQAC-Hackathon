@@ -1141,7 +1141,19 @@ function renderCitizenDashboard() {
                   <option value="Traffic Signal Fault">Traffic Signal Fault</option>
                   <option value="Illegal Dumping">Illegal Dumping</option>
                   <option value="Road Crack">Road Crack</option>
+                  <option value="__custom__">✏️ Other (describe it yourself…)</option>
                 </select>
+                <div id="customIssueRow" style="display:none; margin-top:10px;">
+                  <input
+                    id="customIssueInput"
+                    type="text"
+                    class="inputField"
+                    placeholder="e.g. Broken footpath, Open manhole, Fallen tree…"
+                    maxlength="60"
+                    style="width:100%;"
+                  />
+                  <div class="muted" style="font-size:0.78em; margin-top:4px;">Describe the civic issue in a few words</div>
+                </div>
               </div>
 
               <div class="grid grid--assessment" style="margin-top:14px;">
@@ -1163,6 +1175,25 @@ function renderCitizenDashboard() {
                       <div id="severityBar" style="width:0%"></div>
                     </div>
                   </div>
+                  <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+                    <span class="muted" id="aiSeverityNote" style="font-size:0.82em;"></span>
+                    <button class="btn btn--ghost" type="button" id="overrideSevBtn" style="font-size:0.8em; padding:3px 10px; display:none;">
+                      ✏️ Override
+                    </button>
+                    <button class="btn btn--ghost" type="button" id="resetSevBtn" style="font-size:0.8em; padding:3px 10px; display:none; color:var(--clr-warning,#e88);">
+                      ↩ Use AI value
+                    </button>
+                  </div>
+                  <div id="severityOverrideRow" style="display:none; margin-top:10px; padding:10px; background:var(--clr-surface2,#1e1e2e); border-radius:8px; border:1px solid var(--clr-border,#333);">
+                    <label for="severitySlider" style="display:block; font-size:0.85em; margin-bottom:6px; font-weight:600;">
+                      Custom Severity: <span id="sliderValueLabel" class="mono">Low</span> (<span id="sliderPctLabel" class="mono">20</span>%)
+                    </label>
+                    <input type="range" id="severitySlider" min="0" max="100" value="20" step="1"
+                      style="width:100%; accent-color:var(--clr-primary,#7c3aed); cursor:pointer;" />
+                    <div style="display:flex; justify-content:space-between; font-size:0.75em; margin-top:4px;" class="muted">
+                      <span>Low</span><span>Medium</span><span>High</span><span>Critical</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="panel">
@@ -1180,7 +1211,7 @@ function renderCitizenDashboard() {
             <div class="card__header">
               <div>
                 <h3 class="card__title">Location Selection</h3>
-                <p class="card__sub">Google Maps-style search UI (mock).</p>
+                <p class="card__sub">Auto-detected from photo GPS · or search manually.</p>
               </div>
               <span class="badge">${icon("pin")} Location</span>
             </div>
@@ -1189,6 +1220,7 @@ function renderCitizenDashboard() {
                 <span class="searchBar__icon">${icon("pin")}</span>
                 <input id="locationInput" type="text" placeholder="Search location (e.g., MG Road, Ward 12)" />
               </div>
+              <div id="geotagStatus" style="display:none; margin-top:8px;"></div>
               <div class="searchResult">
                 <div class="muted">
                   Selected: <span class="mono" id="locationText">—</span>
@@ -1633,6 +1665,155 @@ function wireAuthorityAuth() {
 }
 
 // ----------------------------
+// EXIF GPS extraction (pure JS, no library)
+// Parses JPEG APP1/EXIF binary to find GPSLatitude/GPSLongitude
+// ----------------------------
+
+/**
+ * Reads GPS coordinates from a JPEG File's EXIF data.
+ * Returns { lat, lng } or null if no GPS data found.
+ */
+function extractExifGps(file) {
+  return new Promise((resolve) => {
+    if (!file || !file.type.includes("jpeg") && !file.type.includes("jpg")) {
+      resolve(null);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const buf = e.target.result;
+        const view = new DataView(buf);
+
+        // JPEG must start with FFD8
+        if (view.getUint16(0) !== 0xFFD8) { resolve(null); return; }
+
+        let offset = 2;
+        const len = view.byteLength;
+
+        while (offset < len - 2) {
+          const marker = view.getUint16(offset);
+          offset += 2;
+
+          // APP1 marker = 0xFFE1 (contains EXIF)
+          if (marker === 0xFFE1) {
+            const segLen = view.getUint16(offset);
+            // Check for "Exif\0\0" header
+            const exifHeader = String.fromCharCode(
+              view.getUint8(offset + 2), view.getUint8(offset + 3),
+              view.getUint8(offset + 4), view.getUint8(offset + 5),
+            );
+            if (exifHeader !== "Exif") { offset += segLen; continue; }
+
+            // TIFF header starts 8 bytes into the APP1 segment (after length + "Exif\0\0")
+            const tiffStart = offset + 8; // offset is at segment length field
+            const endian = view.getUint16(tiffStart);
+            const littleEndian = endian === 0x4949;
+
+            const ifdOffset = view.getUint32(tiffStart + 4, littleEndian);
+            const gps = parseGpsFromIfd(view, tiffStart, tiffStart + ifdOffset, littleEndian);
+            resolve(gps);
+            return;
+          }
+
+          // Skip other segments
+          if ((marker & 0xFF00) !== 0xFF00) { resolve(null); return; }
+          offset += view.getUint16(offset);
+        }
+        resolve(null);
+      } catch (_) {
+        resolve(null);
+      }
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function parseGpsFromIfd(view, tiffStart, ifdStart, le) {
+  try {
+    const numEntries = view.getUint16(ifdStart, le);
+    let gpsIfdOffset = null;
+
+    // Scan IFD0 for GPS IFD pointer (tag 0x8825)
+    for (let i = 0; i < numEntries; i++) {
+      const entryOffset = ifdStart + 2 + i * 12;
+      const tag = view.getUint16(entryOffset, le);
+      if (tag === 0x8825) {
+        gpsIfdOffset = view.getUint32(entryOffset + 8, le);
+        break;
+      }
+    }
+    if (gpsIfdOffset === null) return null;
+
+    const gpsIfdStart = tiffStart + gpsIfdOffset;
+    const gpsEntries = view.getUint16(gpsIfdStart, le);
+
+    let latRef = null, latVal = null, lngRef = null, lngVal = null;
+
+    for (let i = 0; i < gpsEntries; i++) {
+      const entryOffset = gpsIfdStart + 2 + i * 12;
+      const tag = view.getUint16(entryOffset, le);
+      const type = view.getUint16(entryOffset + 2, le);
+      const count = view.getUint32(entryOffset + 4, le);
+      const valOffset = entryOffset + 8;
+
+      if (tag === 1 || tag === 3) {
+        // GPSLatitudeRef / GPSLongitudeRef — ASCII, 2 chars
+        const ref = String.fromCharCode(view.getUint8(valOffset));
+        if (tag === 1) latRef = ref; else lngRef = ref;
+      }
+
+      if (tag === 2 || tag === 4) {
+        // GPSLatitude / GPSLongitude — RATIONAL[3]: deg, min, sec
+        // RATIONAL = 2 × LONG (numerator, denominator), 8 bytes each
+        const dataOffset = tiffStart + view.getUint32(valOffset, le);
+        const deg = view.getUint32(dataOffset, le) / view.getUint32(dataOffset + 4, le);
+        const min = view.getUint32(dataOffset + 8, le) / view.getUint32(dataOffset + 12, le);
+        const sec = view.getUint32(dataOffset + 16, le) / view.getUint32(dataOffset + 20, le);
+        const decimal = deg + min / 60 + sec / 3600;
+        if (tag === 2) latVal = decimal; else lngVal = decimal;
+      }
+    }
+
+    if (latVal === null || lngVal === null) return null;
+    const lat = latRef === "S" ? -latVal : latVal;
+    const lng = lngRef === "W" ? -lngVal : lngVal;
+    // Sanity check
+    if (lat === 0 && lng === 0) return null;
+    return { lat, lng };
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Reverse-geocodes { lat, lng } to a human-readable address string
+ * using Nominatim (free, no API key). Resolves to a string or null.
+ */
+async function reverseGeocode({ lat, lng }) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`;
+    const res = await fetch(url, {
+      headers: { "Accept-Language": "en", "User-Agent": "CivicKural/1.0" },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Build a short readable label
+    const a = data.address || {};
+    const parts = [
+      a.road || a.pedestrian || a.footway,
+      a.suburb || a.neighbourhood || a.quarter,
+      a.city || a.town || a.village || a.county,
+      a.state,
+    ].filter(Boolean);
+    return parts.length ? parts.join(", ") : data.display_name || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+// ----------------------------
 // Wiring: Citizen Dashboard
 // ----------------------------
 
@@ -1649,6 +1830,10 @@ function wireCitizenDashboard() {
     locationQuery: "",
     locationText: "",
   };
+
+  // Tracks AI's original severity so we can revert to it
+  let aiSeverity = 0;
+  let isOverriding = false;
 
   const issueTypes = [
     "Pothole",
@@ -1673,6 +1858,13 @@ function wireCitizenDashboard() {
   const locationInput = $("#locationInput");
   const locationText = $("#locationText");
   const reportBtn = $("#reportBtn");
+  const overrideSevBtn = $("#overrideSevBtn");
+  const resetSevBtn = $("#resetSevBtn");
+  const severityOverrideRow = $("#severityOverrideRow");
+  const severitySlider = $("#severitySlider");
+  const sliderValueLabel = $("#sliderValueLabel");
+  const sliderPctLabel = $("#sliderPctLabel");
+  const aiSeverityNote = $("#aiSeverityNote");
   let scanTimer = null;
   let isScanning = false;
 
@@ -1684,6 +1876,11 @@ function wireCitizenDashboard() {
       severityBar.style.width = "0%";
       severityLabel.textContent = "Scanning";
       riskScore.textContent = "0";
+      // Hide override controls while scanning
+      if (overrideSevBtn) overrideSevBtn.style.display = "none";
+      if (resetSevBtn) resetSevBtn.style.display = "none";
+      if (severityOverrideRow) severityOverrideRow.style.display = "none";
+      if (aiSeverityNote) aiSeverityNote.textContent = "";
     } else {
       if (issueLabelPlaceholder) issueLabelPlaceholder.textContent = draft.issueType ? "Detected" : "—";
       issueLabel.textContent = draft.issueType ? `Detected Issue: ${draft.issueType}` : "—";
@@ -1691,6 +1888,26 @@ function wireCitizenDashboard() {
       severityBar.style.width = `${draft.severity}%`;
       severityLabel.textContent = severityToLabel(draft.severity);
       riskScore.textContent = String(draft.riskScore);
+
+      // Show/hide override controls only when a result exists
+      if (draft.issueType) {
+        if (isOverriding) {
+          if (aiSeverityNote) aiSeverityNote.textContent = `AI suggested: ${aiSeverity}% (${severityToLabel(aiSeverity)})`;
+          if (overrideSevBtn) overrideSevBtn.style.display = "none";
+          if (resetSevBtn) resetSevBtn.style.display = "inline-flex";
+          if (severityOverrideRow) severityOverrideRow.style.display = "block";
+        } else {
+          if (aiSeverityNote) aiSeverityNote.textContent = "AI detected severity";
+          if (overrideSevBtn) overrideSevBtn.style.display = "inline-flex";
+          if (resetSevBtn) resetSevBtn.style.display = "none";
+          if (severityOverrideRow) severityOverrideRow.style.display = "none";
+        }
+      } else {
+        if (overrideSevBtn) overrideSevBtn.style.display = "none";
+        if (resetSevBtn) resetSevBtn.style.display = "none";
+        if (severityOverrideRow) severityOverrideRow.style.display = "none";
+        if (aiSeverityNote) aiSeverityNote.textContent = "";
+      }
     }
     const locTextElem = $("#locationText");
     if (locTextElem) locTextElem.textContent = draft.locationText ? draft.locationText : "—";
@@ -1699,10 +1916,50 @@ function wireCitizenDashboard() {
     reportBtn.disabled = !canSubmit;
   }
 
+  // Update slider label when user drags
+  function updateSliderLabel(val) {
+    if (sliderValueLabel) sliderValueLabel.textContent = severityToLabel(val);
+    if (sliderPctLabel) sliderPctLabel.textContent = String(val);
+  }
+
+  // Wire override button — show slider panel initialised at current AI severity
+  overrideSevBtn?.addEventListener("click", () => {
+    isOverriding = true;
+    if (severitySlider) {
+      severitySlider.value = String(aiSeverity);
+      updateSliderLabel(aiSeverity);
+    }
+    updateDraftUI();
+  });
+
+  // Wire reset button — revert to AI severity
+  resetSevBtn?.addEventListener("click", () => {
+    isOverriding = false;
+    draft.severity = aiSeverity;
+    draft.riskScore = computeRiskScore({ severity: draft.severity, issueType: draft.issueType });
+    updateDraftUI();
+  });
+
+  // Wire slider — live update severity as user drags
+  severitySlider?.addEventListener("input", (e) => {
+    const val = Number(e.target.value);
+    updateSliderLabel(val);
+    draft.severity = val;
+    draft.riskScore = computeRiskScore({ severity: draft.severity, issueType: draft.issueType });
+    // Update progress bar live
+    severityPct.textContent = String(val);
+    severityBar.style.width = `${val}%`;
+    severityLabel.textContent = severityToLabel(val);
+    riskScore.textContent = String(draft.riskScore);
+  });
+
   function simulateDetection(selectedType) {
     // Mock AI detection results
     draft.issueType = selectedType || issueTypes[Math.floor(Math.random() * issueTypes.length)];
     draft.severity = clamp(Math.round(25 + Math.random() * 70), 0, 100);
+    // Store AI result separately so it can be recalled after manual override
+    aiSeverity = draft.severity;
+    isOverriding = false;
     draft.riskScore = computeRiskScore({
       severity: draft.severity,
       issueType: draft.issueType,
@@ -1711,8 +1968,26 @@ function wireCitizenDashboard() {
     updateDraftUI();
   }
 
+  const customIssueRow = $("#customIssueRow");
+  const customIssueInput = $("#customIssueInput");
+
   issueTypeSelect?.addEventListener("change", (e) => {
     const val = e.target.value;
+
+    // Show or hide the custom text input
+    if (val === "__custom__") {
+      if (customIssueRow) customIssueRow.style.display = "block";
+      if (customIssueInput) customIssueInput.focus();
+      // Don't trigger scanning yet — wait for user to type
+      draft.issueType = null;
+      updateDraftUI();
+      return;
+    }
+
+    // Hide the custom input when a predefined type is chosen
+    if (customIssueRow) customIssueRow.style.display = "none";
+    if (customIssueInput) customIssueInput.value = "";
+
     if (val) {
       if (scanTimer) clearTimeout(scanTimer);
       isScanning = true;
@@ -1723,6 +1998,17 @@ function wireCitizenDashboard() {
         simulateDetection(val);
       }, 1500);
     }
+  });
+
+  // Live-update issueType as user types their custom problem
+  customIssueInput?.addEventListener("input", (e) => {
+    const typed = e.target.value.trim();
+    draft.issueType = typed || null;
+    // Recompute risk with the typed label (uses default weight 1.0)
+    if (typed) {
+      draft.riskScore = computeRiskScore({ severity: draft.severity, issueType: typed });
+    }
+    updateDraftUI();
   });
 
   function acceptFile(file) {
@@ -1751,6 +2037,46 @@ function wireCitizenDashboard() {
     draft.severity = 0;
     draft.riskScore = 0;
     updateDraftUI();
+
+    // ---- EXIF GPS extraction ----
+    const geotagStatus = $("#geotagStatus");
+    if (geotagStatus) {
+      geotagStatus.style.display = "block";
+      geotagStatus.innerHTML = `<span class="muted">📡 Reading photo GPS data…</span>`;
+    }
+
+    extractExifGps(file).then(async (gps) => {
+      if (!gps) {
+        // No GPS data in this photo
+        if (geotagStatus) {
+          geotagStatus.innerHTML = `<span class="muted">📷 No GPS data in photo — enter location manually.</span>`;
+        }
+        return;
+      }
+
+      // GPS found — show coords immediately
+      if (geotagStatus) {
+        geotagStatus.innerHTML = `<span class="muted">📍 GPS found (${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}) — looking up address…</span>`;
+      }
+
+      // Reverse geocode
+      const address = await reverseGeocode(gps);
+      const locationLabel = address || `${gps.lat.toFixed(5)}, ${gps.lng.toFixed(5)}`;
+
+      // Auto-fill location fields
+      draft.locationText = locationLabel;
+      draft.locationQuery = locationLabel;
+      if (locationInput) locationInput.value = locationLabel;
+
+      if (geotagStatus) {
+        geotagStatus.innerHTML = `
+          <span style="display:inline-flex; align-items:center; gap:6px; padding:6px 10px; background:var(--clr-success-bg, #ecfdf5); color:var(--clr-success, #065f46); border-radius:6px; font-size:0.85em;">
+            📍 <strong>Location auto-detected from photo:</strong> ${escapeHtml(locationLabel)}
+          </span>`;
+      }
+
+      updateDraftUI();
+    });
 
     scanTimer = window.setTimeout(() => {
       scanTimer = null;
@@ -1825,8 +2151,18 @@ function wireCitizenDashboard() {
     draft.riskScore = 0;
     draft.locationQuery = "";
     draft.locationText = "";
+    // Reset override state
+    aiSeverity = 0;
+    isOverriding = false;
+    // Reset custom issue type
+    if (customIssueInput) customIssueInput.value = "";
+    if (customIssueRow) customIssueRow.style.display = "none";
+    if (issueTypeSelect) issueTypeSelect.value = "";
     filePill.textContent = "No file selected";
     locationInput.value = "";
+    // Clear geotag status banner
+    const geotagStatus = $("#geotagStatus");
+    if (geotagStatus) { geotagStatus.style.display = "none"; geotagStatus.innerHTML = ""; }
     updateDraftUI();
   });
 

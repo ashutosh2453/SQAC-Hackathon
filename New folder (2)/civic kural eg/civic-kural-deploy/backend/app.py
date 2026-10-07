@@ -28,7 +28,7 @@ from pydantic import BaseModel
 # -------------------------
 # Configuration
 # -------------------------
-MODEL_PATH = "civic_issue_severity_model.h5"
+MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cnn_risk_model.h5")
 MODEL_INPUT_SIZE = (224, 224)  # (height, width)
 
 # Class name mappings (must match training)
@@ -89,13 +89,13 @@ async def load_model():
 
     if not os.path.exists(MODEL_PATH):
         raise FileNotFoundError(
-            f"Model file not found: {MODEL_PATH}\n"
-            "Please ensure civic_issue_severity_model.h5 exists in the project root."
+            f"Model file not found at: {MODEL_PATH}\n"
+            "Please ensure cnn_risk_model.h5 is in the same folder as app.py."
         )
 
     try:
         print(f"Loading model from {MODEL_PATH}...")
-        model = tf.keras.models.load_model(MODEL_PATH)
+        model = tf.keras.models.load_model(MODEL_PATH, compile=False)
         print("Model loaded successfully!")
         print(f"Model input shape: {model.input_shape}")
         print(f"Model outputs: {[out.name for out in model.outputs]}")
