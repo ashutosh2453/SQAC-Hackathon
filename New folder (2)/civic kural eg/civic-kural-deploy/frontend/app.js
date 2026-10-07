@@ -323,15 +323,18 @@ window.addEventListener("DOMContentLoaded", () => {
 function updateSessionUI() {
   const pill = $("#sessionPill");
   const logout = $("#navLogoutBtn");
+  const municipalLink = $("#navMunicipalLink");
   const s = storage.getSession();
 
   if (!s) {
     pill.style.display = "none";
     logout.style.display = "none";
+    if (municipalLink) municipalLink.style.display = "inline-flex";
     return;
   }
   pill.style.display = "inline-flex";
   logout.style.display = "inline-flex";
+  if (municipalLink) municipalLink.style.display = "none";
   pill.textContent =
     s.role === "citizen"
       ? `Citizen: ${s.email}`
@@ -733,12 +736,15 @@ function renderLanding() {
           <h1 class="h1" style="margin-top:12px;">Smart City Intelligence Platform</h1>
           <p class="lead">AI-powered civic problem detection and prioritization.</p>
           <div class="divider"></div>
-          <div class="btnRow" style="margin-top:14px;">
+          <div class="btnRow" style="margin-top:14px; flex-wrap:wrap;">
             <button class="btn btn--primary" type="button" id="citizenBtn">
               ${icon("user")} Citizen Login
             </button>
             <button class="btn btn--violet" type="button" id="authorityBtn">
               ${icon("shield")} Authority Login
+            </button>
+            <button class="btn btn--ghost" type="button" id="municipalLoginBtn" style="border:1px solid #138808; color:#3ddc97;">
+              🏛 Municipal Login (Govt)
             </button>
             ${quick}
           </div>
@@ -782,12 +788,15 @@ function renderLanding() {
               <div class="heroNarrative__headline">AI-Powered Civic Issue Detection for Smarter Cities</div>
               <div class="heroNarrative__sub">Report issues. Prioritize risks. Resolve faster.</div>
             </div>
-            <div class="heroNarrative__ctas">
+            <div class="heroNarrative__ctas" style="flex-wrap:wrap;">
               <button class="btn btn--primary" type="button" id="heroCitizenCta">
                 ${icon("user")} Report an Issue (Citizen)
               </button>
               <button class="btn btn--violet" type="button" id="heroAuthorityCta">
                 ${icon("shield")} View Authority Dashboard
+              </button>
+              <button class="btn btn--ghost" type="button" id="heroMunicipalCta" style="border:1px solid #138808; color:#3ddc97;">
+                🏛 Municipal Officer Portal
               </button>
             </div>
           </div>
@@ -1859,6 +1868,7 @@ function renderNotFound() {
 function wireLanding() {
   $("#citizenBtn")?.addEventListener("click", () => navigate("/citizen-login"));
   $("#authorityBtn")?.addEventListener("click", () => navigate("/authority-login"));
+  $("#municipalLoginBtn")?.addEventListener("click", () => navigate("/municipal-login"));
   $("#goDash")?.addEventListener("click", () => {
     const s = storage.getSession();
     if (!s) return;
@@ -1866,6 +1876,7 @@ function wireLanding() {
   });
   $("#heroCitizenCta")?.addEventListener("click", () => navigate("/citizen-login"));
   $("#heroAuthorityCta")?.addEventListener("click", () => navigate("/authority-dashboard"));
+  $("#heroMunicipalCta")?.addEventListener("click", () => navigate("/municipal-login"));
 }
 
 // ----------------------------
