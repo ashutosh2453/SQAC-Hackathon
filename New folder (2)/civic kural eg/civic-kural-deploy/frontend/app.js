@@ -268,6 +268,7 @@ const routes = {
   "/": renderLanding,
   "/citizen-login": renderCitizenAuth,
   "/authority-login": renderAuthorityAuth,
+  "/municipal-login": renderMunicipalLogin,
   "/citizen-dashboard": renderCitizenDashboard,
   "/citizen-analytics": renderCitizenAnalytics,
   "/citizen-reports": renderCitizenReports,
@@ -349,9 +350,13 @@ function wireCommon() {
 }
 
 function wireRoute(route) {
+  // Toggle body class so government page can hide the main topbar/footer
+  document.body.classList.toggle("govMode", route === "/municipal-login");
+
   if (route === "/") wireLanding();
   if (route === "/citizen-login") wireCitizenAuth();
   if (route === "/authority-login") wireAuthorityAuth();
+  if (route === "/municipal-login") wireMunicipalLogin();
   if (route === "/citizen-dashboard") wireCitizenDashboard();
   if (route === "/citizen-analytics") wireCitizenAnalytics();
   if (route === "/citizen-reports") wireCitizenReports();
@@ -997,6 +1002,288 @@ function renderAuthorityAuth() {
         </div>
       </div>
     </section>
+  `;
+}
+
+// ----------------------------
+// Municipal (Government) Login Page
+// ----------------------------
+
+function renderMunicipalLogin() {
+  // Generate a simple alphanumeric CAPTCHA
+  const captchaChars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let captchaVal = "";
+  for (let i = 0; i < 5; i++) captchaVal += captchaChars[Math.floor(Math.random() * captchaChars.length)];
+  // Store on window so the wiring function can verify it
+  window._govCaptcha = captchaVal;
+
+  return `
+  <div class="govPage" role="document">
+
+    <!-- ═══════════════════ GOVERNMENT HEADER ═══════════════════ -->
+    <header class="govHdr" role="banner">
+      <div class="govHdr__inner">
+        <div class="govHdr__brand">
+          <!-- Emblem placeholder -->
+          <div class="govHdr__emblem" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+              <circle cx="32" cy="32" r="30" stroke="#1a3a6b" stroke-width="2.5" fill="#f7f3e8"/>
+              <circle cx="32" cy="32" r="22" stroke="#1a3a6b" stroke-width="1.5" fill="none"/>
+              <path d="M22 44 L22 28 L32 20 L42 28 L42 44 Z" fill="#1a3a6b" opacity="0.15"/>
+              <rect x="27" y="36" width="10" height="8" rx="1" fill="#1a3a6b" opacity="0.7"/>
+              <rect x="20" y="44" width="24" height="2" rx="0.5" fill="#1a3a6b"/>
+              <path d="M32 20 L32 14" stroke="#c47f17" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="32" cy="13" r="2" fill="#c47f17"/>
+              <path d="M18 31 Q32 25 46 31" stroke="#1a3a6b" stroke-width="1" fill="none" opacity="0.5"/>
+              <text x="32" y="56" text-anchor="middle" font-size="5" fill="#1a3a6b" font-family="serif" font-weight="bold">सत्यमेव जयते</text>
+            </svg>
+          </div>
+          <div class="govHdr__titles">
+            <div class="govHdr__corp">MUNICIPAL CORPORATION</div>
+            <div class="govHdr__dept">CITIZEN GRIEVANCE &amp; CIVIC SERVICES</div>
+            <div class="govHdr__sub">Authority Administration Portal</div>
+          </div>
+        </div>
+        <nav class="govHdr__utils" aria-label="Utility navigation">
+          <a href="#/municipal-login" class="govHdr__util">English</a>
+          <span class="govHdr__sep">|</span>
+          <a href="#/municipal-login" class="govHdr__util" lang="hi">हिंदी</a>
+          <span class="govHdr__sep">|</span>
+          <a href="#/municipal-login" class="govHdr__util" lang="ta">தமிழ்</a>
+          <span class="govHdr__sep">|</span>
+          <a href="#/municipal-login" class="govHdr__util">Accessibility</a>
+          <span class="govHdr__sep">|</span>
+          <a href="#/municipal-login" class="govHdr__util">Help</a>
+          <span class="govHdr__sep">|</span>
+          <a href="#/municipal-login" class="govHdr__util">Contact Us</a>
+        </nav>
+      </div>
+      <!-- Saffron-white-green tricolor stripe -->
+      <div class="govHdr__stripe" aria-hidden="true">
+        <div class="govHdr__stripe-saffron"></div>
+        <div class="govHdr__stripe-white"></div>
+        <div class="govHdr__stripe-green"></div>
+      </div>
+    </header>
+
+    <!-- ═══════════════════ GOVERNMENT NAV ═══════════════════ -->
+    <nav class="govNav" aria-label="Primary navigation">
+      <div class="govNav__inner">
+        <a href="#/" class="govNav__link">Home</a>
+        <a href="#/municipal-login" class="govNav__link">About Us</a>
+        <a href="#/municipal-login" class="govNav__link">Departments</a>
+        <a href="#/citizen-login" class="govNav__link">Citizen Services</a>
+        <a href="#/municipal-login" class="govNav__link">Grievances</a>
+        <a href="#/municipal-login" class="govNav__link">Notices</a>
+        <a href="#/municipal-login" class="govNav__link govNav__link--active" aria-current="page">Authority Login</a>
+        <a href="#/municipal-login" class="govNav__link">Contact</a>
+      </div>
+    </nav>
+
+    <!-- ═══════════════════ BREADCRUMB & PAGE TITLE ═══════════════════ -->
+    <div class="govBreadcrumb">
+      <div class="govBreadcrumb__inner">
+        <span><a href="#/" class="govBreadcrumb__link">Home</a></span>
+        <span class="govBreadcrumb__sep">›</span>
+        <span>Authority Login</span>
+      </div>
+    </div>
+
+    <div class="govPageTitle">
+      <div class="govPageTitle__inner">
+        <h1 class="govPageTitle__h1">MUNICIPAL LOGIN</h1>
+        <hr class="govPageTitle__hr" />
+        <p class="govPageTitle__sub">Municipal Corporation – Authorized Personnel Portal</p>
+        <div class="govNotice govNotice--info" role="note">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          This portal is intended for authorized municipal personnel only. Unauthorized access is strictly prohibited.
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ MAIN CONTENT ═══════════════════ -->
+    <main class="govMain" id="govMainContent" tabindex="-1">
+      <div class="govMain__inner">
+
+        <!-- Login Panel -->
+        <section class="govLoginPanel" aria-labelledby="govLoginHeading">
+          <div class="govLoginPanel__head">
+            <h2 class="govLoginPanel__title" id="govLoginHeading">MUNICIPAL PERSONNEL LOGIN</h2>
+            <p class="govLoginPanel__subtitle">Please enter your official credentials to access the Municipal Grievance Management System.</p>
+          </div>
+
+          <div id="govAuthMsg" role="alert" aria-live="polite"></div>
+
+          <form class="govForm" id="govLoginForm" novalidate autocomplete="off">
+
+            <!-- Official User ID -->
+            <div class="govField">
+              <label class="govLabel" for="govUserId">
+                OFFICIAL USER ID <span class="govLabel__req" aria-hidden="true">*</span>
+              </label>
+              <input
+                class="govInput"
+                id="govUserId"
+                name="userId"
+                type="text"
+                placeholder="Enter Official ID (e.g. AUTH-1024)"
+                required
+                autocomplete="username"
+                aria-required="true"
+              />
+            </div>
+
+            <!-- Password -->
+            <div class="govField">
+              <label class="govLabel" for="govPassword">
+                PASSWORD <span class="govLabel__req" aria-hidden="true">*</span>
+              </label>
+              <div class="govInputWrap">
+                <input
+                  class="govInput"
+                  id="govPassword"
+                  name="password"
+                  type="password"
+                  placeholder="Enter Password"
+                  required
+                  autocomplete="current-password"
+                  aria-required="true"
+                />
+                <button type="button" class="govInputWrap__eye" id="govTogglePass" aria-label="Show or hide password" title="Toggle password visibility">
+                  <svg id="govEyeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Department -->
+            <div class="govField">
+              <label class="govLabel" for="govDepartment">
+                DEPARTMENT <span class="govLabel__req" aria-hidden="true">*</span>
+              </label>
+              <select class="govSelect" id="govDepartment" name="department" required aria-required="true">
+                <option value="">— Select Department —</option>
+                <option value="Municipal Administration">Municipal Administration</option>
+                <option value="Roads &amp; Infrastructure">Roads &amp; Infrastructure</option>
+                <option value="Electrical Department">Electrical Department</option>
+                <option value="Sanitation Department">Sanitation Department</option>
+                <option value="Water Supply">Water Supply</option>
+                <option value="Drainage Department">Drainage Department</option>
+                <option value="Grievance Cell">Grievance Cell</option>
+              </select>
+            </div>
+
+            <!-- CAPTCHA -->
+            <div class="govField">
+              <label class="govLabel" for="govCaptchaInput">
+                CAPTCHA VERIFICATION <span class="govLabel__req" aria-hidden="true">*</span>
+              </label>
+              <div class="govCaptcha">
+                <div class="govCaptcha__display" id="govCaptchaDisplay" aria-label="CAPTCHA code">${captchaVal}</div>
+                <button type="button" class="govCaptcha__refresh" id="govCaptchaRefresh" title="Refresh CAPTCHA" aria-label="Refresh CAPTCHA">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.36-3.36L23 10M1 14l5.13 4.36A9 9 0 0020.49 15"/></svg>
+                  Refresh
+                </button>
+              </div>
+              <input
+                class="govInput govInput--captcha"
+                id="govCaptchaInput"
+                name="captcha"
+                type="text"
+                placeholder="Enter CAPTCHA shown above"
+                required
+                autocomplete="off"
+                aria-required="true"
+                maxlength="6"
+                style="text-transform:uppercase; letter-spacing:3px;"
+              />
+            </div>
+
+            <!-- Remember + Forgot -->
+            <div class="govCheckRow">
+              <label class="govCheck">
+                <input type="checkbox" id="govRemember" name="remember" />
+                <span>Remember this device</span>
+              </label>
+              <a href="#/municipal-login" class="govForgot">Forgot Password?</a>
+            </div>
+
+            <!-- Submit -->
+            <button type="submit" class="govBtn" id="govSubmitBtn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              LOGIN
+            </button>
+
+            <div class="govBtn__note">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              Authorized Access Only
+            </div>
+
+            <div class="govDemoRow">
+              <button type="button" class="govDemoBtn" id="govDemoFill">Use Demo Credentials</button>
+              <a href="#/" class="govDemoBtn">← Back to Home</a>
+            </div>
+
+          </form>
+        </section>
+
+        <!-- Info Panel -->
+        <aside class="govInfoPanel" aria-labelledby="govInfoHeading">
+          <div class="govInfoPanel__head">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <h2 class="govInfoPanel__title" id="govInfoHeading">IMPORTANT INFORMATION</h2>
+          </div>
+          <ul class="govInfoPanel__list">
+            <li>This portal is for authorized municipal personnel only.</li>
+            <li>Do not share your login credentials with any other person.</li>
+            <li>All activities performed through this portal are recorded for administrative and audit purposes.</li>
+            <li>Unauthorized access or misuse of this system is a punishable offence.</li>
+            <li>For technical support, contact your department's IT helpdesk.</li>
+          </ul>
+          <div class="govInfoPanel__divider"></div>
+          <div class="govInfoPanel__section">
+            <strong>Helpdesk</strong>
+            <p>Monday – Saturday: 9:30 AM – 6:00 PM</p>
+            <p>📞 1800-XXX-XXXX (Toll-free)</p>
+            <p>✉ helpdesk@municipal.gov.in</p>
+          </div>
+          <div class="govInfoPanel__divider"></div>
+          <div class="govInfoPanel__section">
+            <strong>Supported Departments</strong>
+            <p>Roads · Sanitation · Electrical · Water Supply · Drainage · Grievance Cell · Municipal Administration</p>
+          </div>
+          <div class="govInfoPanel__badge">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Secured Portal · SSL Encrypted
+          </div>
+        </aside>
+
+      </div>
+    </main>
+
+    <!-- ═══════════════════ GOVERNMENT FOOTER ═══════════════════ -->
+    <footer class="govFooter" role="contentinfo">
+      <div class="govFooter__top">
+        <div class="govFooter__brand">
+          <div class="govFooter__name">Municipal Corporation</div>
+          <div class="govFooter__tagline">Citizen Grievance &amp; Civic Services Portal</div>
+        </div>
+        <nav class="govFooter__links" aria-label="Footer navigation">
+          <a href="#/municipal-login" class="govFooter__link">Privacy Policy</a>
+          <a href="#/municipal-login" class="govFooter__link">Terms of Use</a>
+          <a href="#/municipal-login" class="govFooter__link">Accessibility</a>
+          <a href="#/municipal-login" class="govFooter__link">Website Policies</a>
+          <a href="#/municipal-login" class="govFooter__link">Contact Us</a>
+          <a href="#/municipal-login" class="govFooter__link">Helpdesk</a>
+        </nav>
+      </div>
+      <div class="govFooter__bottom">
+        <p>© 2026 Municipal Corporation. All Rights Reserved.</p>
+        <p>Content owned and maintained by Municipal Corporation. Website designed and developed for civic service delivery.</p>
+        <p class="govFooter__lastUpdated">Last Updated: October 2026 &nbsp;|&nbsp; Version 3.1.0</p>
+      </div>
+    </footer>
+
+  </div><!-- /.govPage -->
   `;
 }
 
@@ -1661,6 +1948,93 @@ function wireAuthorityAuth() {
     storage.setSession({ role: "authority", authorityId });
     msg.innerHTML = `<div class="success">Authority access granted (mock). Redirecting…</div>`;
     setTimeout(() => navigate("/authority-dashboard"), 400);
+  });
+}
+
+// ----------------------------
+// Wiring: Municipal (Government) Login
+// ----------------------------
+
+function wireMunicipalLogin() {
+  const form       = $("#govLoginForm");
+  const msgEl      = $("#govAuthMsg");
+  const passInput  = $("#govPassword");
+  const toggleBtn  = $("#govTogglePass");
+  const eyeIcon    = $("#govEyeIcon");
+  const captchaEl  = $("#govCaptchaDisplay");
+  const captchaIn  = $("#govCaptchaInput");
+  const refreshBtn = $("#govCaptchaRefresh");
+  const demoBtn    = $("#govDemoFill");
+
+  // Helper: generate a new CAPTCHA
+  function refreshCaptcha() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let val = "";
+    for (let i = 0; i < 5; i++) val += chars[Math.floor(Math.random() * chars.length)];
+    window._govCaptcha = val;
+    if (captchaEl) captchaEl.textContent = val;
+    if (captchaIn) captchaIn.value = "";
+  }
+
+  // Password toggle (eye icon)
+  toggleBtn?.addEventListener("click", () => {
+    const isPass = passInput.type === "password";
+    passInput.type = isPass ? "text" : "password";
+    eyeIcon.innerHTML = isPass
+      ? `<path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`
+      : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+  });
+
+  // CAPTCHA refresh button
+  refreshBtn?.addEventListener("click", refreshCaptcha);
+
+  // Demo fill button
+  demoBtn?.addEventListener("click", () => {
+    const uid  = $("#govUserId");
+    const pwd  = $("#govPassword");
+    const dept = $("#govDepartment");
+    if (uid)  uid.value  = "AUTH-1024";
+    if (pwd)  pwd.value  = "ops12345";
+    if (dept) dept.value = "Grievance Cell";
+    if (captchaIn && window._govCaptcha) captchaIn.value = window._govCaptcha;
+  });
+
+  // Form submission — identical auth logic to wireAuthorityAuth
+  form?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!msgEl) return;
+    msgEl.innerHTML = "";
+
+    const authorityId  = ($("#govUserId")?.value  || "").trim();
+    const password     = ($("#govPassword")?.value || "");
+    const dept         = ($("#govDepartment")?.value || "").trim();
+    const captchaTyped = (captchaIn?.value || "").trim().toUpperCase();
+
+    const errs = [];
+    if (authorityId.length < 4) errs.push("Please enter a valid Official User ID (minimum 4 characters).");
+    if (password.length < 6)    errs.push("Password must be at least 6 characters.");
+    if (!dept)                  errs.push("Please select your Department.");
+    if (!captchaTyped || captchaTyped !== (window._govCaptcha || "")) {
+      errs.push("CAPTCHA verification failed. Please try again.");
+      refreshCaptcha();
+    }
+
+    if (errs.length) {
+      msgEl.innerHTML = `<div class="govMsg govMsg--error"><strong>Error:</strong> ${escapeHtml(errs.join(" "))}</div>`;
+      return;
+    }
+
+    // Show loading state
+    const submitBtn = $("#govSubmitBtn");
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Verifying…"; }
+    msgEl.innerHTML = `<div class="govMsg govMsg--info">Authenticating credentials… Please wait.</div>`;
+
+    // Same session mechanism as wireAuthorityAuth → redirects to authority-dashboard
+    setTimeout(() => {
+      storage.setSession({ role: "authority", authorityId, department: dept });
+      msgEl.innerHTML = `<div class="govMsg govMsg--success">✓ Access Granted. Redirecting to dashboard…</div>`;
+      setTimeout(() => navigate("/authority-dashboard"), 600);
+    }, 800);
   });
 }
 
