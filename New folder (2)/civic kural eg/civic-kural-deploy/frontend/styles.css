@@ -2951,4 +2951,638 @@ body.govMode .app {
   .govForm {
     padding: 14px 14px 16px;
   }
-}
+}
+
+
+/* ============================================================
+   MUNICIPAL DASHBOARD — Government portal theme
+   All styles scoped under .munPage / body.govMode (shared).
+   The .govMode class is already applied by wireRoute() for all
+   /municipal-* routes, which hides the dark topbar + footer.
+   These styles are FULLY SEPARATE from Authority Dashboard CSS.
+   ============================================================ */
+
+/* ── Root page wrapper ── */
+.munPage {
+  font-family: "Segoe UI", Arial, "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 14px;
+  color: #1a2a3a;
+  background: #F3F5F8;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ══════════════════════════════════════════
+   MUNICIPAL HEADER
+   ══════════════════════════════════════════ */
+.munHdr {
+  background: #ffffff;
+  border-bottom: 1px solid #D9E0E8;
+  box-shadow: 0 2px 6px rgba(22, 58, 99, 0.08);
+}
+.munHdr__inner {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.munHdr__brand {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.munHdr__emblem {
+  width: 68px;
+  height: 68px;
+  flex-shrink: 0;
+}
+.munHdr__emblem svg {
+  width: 100%;
+  height: 100%;
+}
+.munHdr__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.munHdr__corp {
+  font-size: 17px;
+  font-weight: 800;
+  color: #163A63;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+.munHdr__dept {
+  font-size: 12px;
+  font-weight: 600;
+  color: #245A91;
+  letter-spacing: 0.3px;
+}
+.munHdr__sub {
+  font-size: 11px;
+  color: #6B7A8D;
+  margin-top: 2px;
+}
+.munHdr__user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.munHdr__userInfo {
+  text-align: right;
+}
+.munHdr__userName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #163A63;
+}
+.munHdr__userDept {
+  font-size: 11px;
+  color: #245A91;
+  margin-top: 2px;
+}
+.munHdr__logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #163A63;
+  background: #EDF1F7;
+  border: 1px solid #C5D3E4;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  letter-spacing: 0.2px;
+}
+.munHdr__logout:hover {
+  background: #D9E4F0;
+  border-color: #163A63;
+}
+.munHdr__logout:focus-visible {
+  outline: 3px solid #FF9933;
+  outline-offset: 2px;
+}
+/* Tricolor stripe */
+.munHdr__stripe {
+  display: flex;
+  height: 4px;
+}
+.munHdr__stripe-saffron { background: #FF9933; flex: 1; }
+.munHdr__stripe-white   { background: #FFFFFF; border-top: 1px solid #eee; border-bottom: 1px solid #eee; flex: 1; }
+.munHdr__stripe-green   { background: #138808; flex: 1; }
+
+/* ══════════════════════════════════════════
+   MUNICIPAL BODY LAYOUT (sidebar + main)
+   ══════════════════════════════════════════ */
+.munBody {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  flex: 1;
+  align-items: start;
+  max-width: 1360px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 24px 24px 32px;
+  gap: 24px;
+  box-sizing: border-box;
+}
+@media (max-width: 960px) {
+  .munBody {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ══════════════════════════════════════════
+   MUNICIPAL SIDEBAR
+   ══════════════════════════════════════════ */
+.munSidebar {
+  background: #163A63;
+  border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(22, 58, 99, 0.15);
+  overflow: hidden;
+  position: sticky;
+  top: 24px;
+}
+.munSidebar__roleTag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #A8C4E0;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.munSidebar__roleTag svg {
+  opacity: 0.8;
+}
+.munSideNav {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 0;
+}
+.munSideNav__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  color: #B8D0E8;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s, border-left 0.15s;
+  border-left: 3px solid transparent;
+}
+.munSideNav__item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+.munSideNav__item.is-active {
+  background: rgba(22, 128, 60, 0.18);
+  color: #ffffff;
+  border-left-color: #16803C;
+  font-weight: 700;
+}
+.munSideNav__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+.munSideNav__label {
+  letter-spacing: 0.2px;
+}
+.munSidebar__info {
+  padding: 14px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 4px;
+}
+.munSidebar__infoLabel {
+  font-size: 10px;
+  color: #6A8EB0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+.munSidebar__infoVal {
+  font-size: 12px;
+  color: #9AB8D0;
+  margin-top: 3px;
+}
+
+/* ══════════════════════════════════════════
+   MUNICIPAL MAIN CONTENT
+   ══════════════════════════════════════════ */
+.munMain {
+  min-width: 0;
+}
+.munPageHead {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: #ffffff;
+  border: 1px solid #D9E0E8;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(22, 58, 99, 0.06);
+}
+.munPageHead__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #245A91;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.munPageHead__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #163A63;
+  letter-spacing: -0.2px;
+}
+.munPageHead__sub {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #6B7A8D;
+  line-height: 1.4;
+}
+.munContent {
+  /* Content fills this area; uses existing .card, .stack, .grid classes */
+}
+
+/* ══════════════════════════════════════════
+   MUNICIPAL FOOTER
+   ══════════════════════════════════════════ */
+.munFooter {
+  background: #163A63;
+  color: #9AB8D0;
+  margin-top: auto;
+}
+.munFooter__top {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 20px 24px 16px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+.munFooter__brand { flex: 1; min-width: 200px; }
+.munFooter__name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.munFooter__tagline { font-size: 12px; color: #7A9CC0; }
+.munFooter__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: center;
+}
+.munFooter__link {
+  font-size: 12px;
+  color: #8AAACE;
+  text-decoration: none;
+  padding: 2px 10px;
+  border-right: 1px solid rgba(255, 255, 255, 0.18);
+}
+.munFooter__link:first-child { padding-left: 0; }
+.munFooter__link:last-child { border-right: none; }
+.munFooter__link:hover { color: #ffffff; text-decoration: underline; }
+.munFooter__bottom {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 12px 24px 16px;
+  font-size: 11px;
+  color: #6A8AAE;
+  line-height: 1.6;
+}
+.munFooter__bottom p { margin: 2px 0; }
+
+/* ══════════════════════════════════════════
+   OVERRIDES: existing shared components inside .munPage
+   These override the dark-theme defaults only within
+   .munPage scope. The authority dashboard is unaffected.
+   ══════════════════════════════════════════ */
+
+/* Cards — white on grey background */
+.munPage .card {
+  background: #ffffff;
+  border: 1px solid #D9E0E8;
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(22, 58, 99, 0.07);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.munPage .card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(22, 58, 99, 0.12);
+  border-color: #B8C8D8;
+}
+.munPage .card__title {
+  color: #163A63;
+  font-weight: 700;
+}
+.munPage .card__sub {
+  color: #6B7A8D;
+}
+.munPage .card__header {
+  border-bottom: 1px solid #EDF1F7;
+  padding-bottom: 12px;
+  margin-bottom: 0;
+}
+
+/* Panels */
+.munPage .panel {
+  background: #F3F5F8;
+  border: 1px solid #D9E0E8;
+  border-radius: 6px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.munPage .panel:hover {
+  background: #EDF1F7;
+  transform: none;
+  box-shadow: 0 2px 8px rgba(22, 58, 99, 0.08);
+}
+
+/* Badges — neutral government style */
+.munPage .badge {
+  border: 1px solid #C5D3E4;
+  background: #EDF1F7;
+  color: #245A91;
+  font-weight: 600;
+}
+.munPage .badge--pending {
+  border-color: rgba(230, 130, 0, 0.35);
+  background: rgba(255, 153, 51, 0.12);
+  color: #8B4E00;
+  animation: none; /* disable pulsing in govt theme */
+}
+.munPage .badge--verified {
+  border-color: rgba(36, 90, 145, 0.3);
+  background: rgba(36, 90, 145, 0.1);
+  color: #163A63;
+}
+.munPage .badge--resolved {
+  border-color: rgba(22, 128, 60, 0.3);
+  background: rgba(22, 128, 60, 0.1);
+  color: #0A4D1E;
+}
+.munPage .badge--flagged {
+  border-color: rgba(180, 30, 30, 0.3);
+  background: rgba(180, 30, 30, 0.1);
+  color: #7B1E1E;
+}
+
+/* Table */
+.munPage .tableWrap {
+  border: 1px solid #D9E0E8;
+  border-radius: 6px;
+  background: #ffffff;
+}
+.munPage table {
+  color: #1a2a3a;
+}
+.munPage th {
+  background: #EDF1F7;
+  color: #245A91;
+  border-bottom: 2px solid #D9E0E8;
+  font-weight: 700;
+}
+.munPage td {
+  border-bottom: 1px solid #EDF1F7;
+  color: #2a3a4a;
+}
+.munPage tr:hover td {
+  background: #F7F9FC;
+}
+.munPage tr.is-selected td {
+  background: rgba(36, 90, 145, 0.06);
+}
+.munPage .tableTiny {
+  color: #8A9BB0;
+}
+
+/* Metric values */
+.munPage .metric__value {
+  color: #163A63;
+}
+.munPage .metric__sub {
+  color: #6B7A8D;
+}
+
+/* Risk status */
+.munPage .riskStatus--low {
+  color: #16803C;
+  background: rgba(22, 128, 60, 0.1);
+  border: 1px solid rgba(22, 128, 60, 0.3);
+}
+.munPage .riskStatus--medium {
+  color: #8B4E00;
+  background: rgba(230, 130, 0, 0.1);
+  border: 1px solid rgba(230, 130, 0, 0.3);
+}
+.munPage .riskStatus--high {
+  color: #7B1E1E;
+  background: rgba(180, 30, 30, 0.1);
+  border: 1px solid rgba(180, 30, 30, 0.3);
+}
+
+/* Critical list */
+.munPage .criticalList__label { color: #163A63; }
+.munPage .criticalList__meta { color: #6B7A8D; }
+.munPage .criticalList__risk--high { color: #B01E1E; }
+.munPage .criticalList__risk--medium { color: #8B4E00; }
+.munPage .criticalList__risk--low { color: #16803C; }
+
+/* Bar / Line / Pie chart wrappers */
+.munPage .lineChart {
+  border: 1px solid #D9E0E8;
+  background: #F7F9FC;
+  border-radius: 6px;
+}
+.munPage .lineChart__labels {
+  border-top: 1px solid #D9E0E8;
+  color: #6B7A8D;
+}
+.munPage .barRow__bar {
+  background: #EDF1F7;
+  border: 1px solid #D9E0E8;
+}
+.munPage .barRow__fill {
+  background: linear-gradient(90deg, #163A63, #245A91);
+}
+.munPage .barRow__label { color: #245A91; }
+.munPage .barRow__value { color: #163A63; }
+
+/* Pie chart inner circle override — light fill */
+.munPage .pieLegend__item {
+  background: #F3F5F8;
+  border: 1px solid #D9E0E8;
+  color: #2a3a4a;
+}
+.munPage .pieLegend__pct { color: #245A91; }
+
+/* Heatmap */
+.munPage .heatmap__cell {
+  background: #EDF1F7;
+  border: 1px solid #D9E0E8;
+}
+.munPage .heatmap__cell::before {
+  background: linear-gradient(90deg, rgba(22, 58, 99, 0.05), rgba(36, 90, 145, 0.05));
+}
+.munPage .heatmap__label { color: #163A63; }
+.munPage .heatmap__meta { color: #245A91; }
+
+/* Mini progress */
+.munPage .miniProgress__bar {
+  background: #D9E0E8;
+  border: 1px solid #C5D3E4;
+}
+.munPage .miniProgress__bar > div {
+  background: linear-gradient(90deg, #163A63, #245A91);
+}
+
+/* Buttons — government style */
+.munPage .btn {
+  border: 1px solid #C5D3E4;
+  background: #EDF1F7;
+  color: #163A63;
+}
+.munPage .btn:hover {
+  background: #D9E4F0;
+  border-color: #163A63;
+  box-shadow: 0 2px 8px rgba(22, 58, 99, 0.12);
+}
+.munPage .btn--primary {
+  border-color: #16803C;
+  background: linear-gradient(180deg, rgba(22, 128, 60, 0.15), rgba(22, 128, 60, 0.07));
+  color: #0A4D1E;
+}
+.munPage .btn--primary:hover {
+  background: rgba(22, 128, 60, 0.2);
+  border-color: #16803C;
+}
+.munPage .btn--violet {
+  border-color: #8B4E00;
+  background: linear-gradient(180deg, rgba(230, 130, 0, 0.14), rgba(230, 130, 0, 0.06));
+  color: #6B3A00;
+}
+.munPage .btn--ghost {
+  background: #F3F5F8;
+  border-color: #D9E0E8;
+}
+
+/* Muted text */
+.munPage .muted {
+  color: #6B7A8D;
+}
+
+/* Kicker */
+.munPage .kicker {
+  border: 1px solid #D9E0E8;
+  background: #F3F5F8;
+  color: #245A91;
+}
+
+/* Divider */
+.munPage .divider {
+  background: #D9E0E8;
+}
+
+/* rowBetween text */
+.munPage strong {
+  color: #163A63;
+}
+
+/* Summary cards grid numbers */
+.munPage .metric .mono {
+  color: #163A63;
+  font-size: 28px;
+}
+
+/* Modal — government light theme for munPage context */
+/* (modal is rendered in #modalRoot outside .munPage, so we scope via body.govMode) */
+body.govMode .modal {
+  background: #ffffff;
+  border: 1px solid #D9E0E8;
+  box-shadow: 0 8px 32px rgba(22, 58, 99, 0.18);
+}
+body.govMode .modal__head {
+  background: #EDF1F7;
+  border-bottom: 1px solid #D9E0E8;
+  color: #163A63;
+}
+body.govMode .modal__title {
+  color: #163A63;
+}
+body.govMode .modal__body {
+  color: #1a2a3a;
+}
+body.govMode .modal__actions {
+  background: #F7F9FC;
+  border-top: 1px solid #D9E0E8;
+}
+body.govMode .modal .panel {
+  background: #F3F5F8;
+  border: 1px solid #D9E0E8;
+  backdrop-filter: none;
+}
+body.govMode .modal .muted {
+  color: #6B7A8D;
+}
+body.govMode .modal strong { color: #163A63; }
+body.govMode .modal .divider { background: #D9E0E8; }
+
+/* ══════════════════════════════════════════
+   RESPONSIVE — Municipal
+   ══════════════════════════════════════════ */
+@media (max-width: 960px) {
+  .munSidebar {
+    position: static;
+  }
+  .munBody {
+    padding: 16px;
+    gap: 16px;
+  }
+}
+@media (max-width: 640px) {
+  .munHdr__inner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .munHdr__user {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .munHdr__userInfo {
+    text-align: left;
+  }
+  .munPageHead__title {
+    font-size: 17px;
+  }
+  .munFooter__top {
+    flex-direction: column;
+    gap: 14px;
+  }
+}

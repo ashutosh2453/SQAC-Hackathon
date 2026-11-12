@@ -275,6 +275,9 @@ const routes = {
   "/authority-dashboard": renderAuthorityDashboard,
   "/authority-analytics": renderAuthorityAnalytics,
   "/authority-reports": renderAuthorityReports,
+  "/municipal-dashboard": renderMunicipalDashboard,
+  "/municipal-analytics": renderMunicipalAnalytics,
+  "/municipal-reports": renderMunicipalReports,
 };
 
 function getRoute() {
@@ -335,10 +338,13 @@ function updateSessionUI() {
   pill.style.display = "inline-flex";
   logout.style.display = "inline-flex";
   if (municipalLink) municipalLink.style.display = "none";
-  pill.textContent =
-    s.role === "citizen"
-      ? `Citizen: ${s.email}`
-      : `Authority: ${s.authorityId}`;
+  if (s.role === "citizen") {
+    pill.textContent = `Citizen: ${s.email}`;
+  } else if (s.role === "municipal") {
+    pill.textContent = `Municipal: ${s.authorityId}`;
+  } else {
+    pill.textContent = `Authority: ${s.authorityId}`;
+  }
 }
 
 function wireCommon() {
@@ -354,7 +360,11 @@ function wireCommon() {
 
 function wireRoute(route) {
   // Toggle body class so government page can hide the main topbar/footer
-  document.body.classList.toggle("govMode", route === "/municipal-login");
+  const isGovPage = route === "/municipal-login" ||
+    route === "/municipal-dashboard" ||
+    route === "/municipal-analytics" ||
+    route === "/municipal-reports";
+  document.body.classList.toggle("govMode", isGovPage);
 
   if (route === "/") wireLanding();
   if (route === "/citizen-login") wireCitizenAuth();
@@ -366,6 +376,9 @@ function wireRoute(route) {
   if (route === "/authority-dashboard") wireAuthorityDashboard();
   if (route === "/authority-analytics") wireAuthorityAnalytics();
   if (route === "/authority-reports") wireAuthorityReports();
+  if (route === "/municipal-dashboard") wireMunicipalDashboard();
+  if (route === "/municipal-analytics") wireMunicipalAnalytics();
+  if (route === "/municipal-reports") wireMunicipalReports();
 }
 
 // ----------------------------
@@ -723,7 +736,9 @@ function renderLanding() {
       ? `<button class="btn btn--primary" type="button" id="goDash">Go to Citizen Dashboard</button>`
       : s?.role === "authority"
         ? `<button class="btn btn--violet" type="button" id="goDash">Go to Authority Dashboard</button>`
-        : "";
+        : s?.role === "municipal"
+          ? `<button class="btn btn--ghost" type="button" id="goDash" style="border:1px solid #16803C; color:#16803C;">🏛 Go to Municipal Dashboard</button>`
+          : "";
 
   return `
     <section class="hero">
@@ -1872,7 +1887,9 @@ function wireLanding() {
   $("#goDash")?.addEventListener("click", () => {
     const s = storage.getSession();
     if (!s) return;
-    navigate(s.role === "citizen" ? "/citizen-dashboard" : "/authority-dashboard");
+    if (s.role === "citizen") navigate("/citizen-dashboard");
+    else if (s.role === "municipal") navigate("/municipal-dashboard");
+    else navigate("/authority-dashboard");
   });
   $("#heroCitizenCta")?.addEventListener("click", () => navigate("/citizen-login"));
   $("#heroAuthorityCta")?.addEventListener("click", () => navigate("/authority-dashboard"));
@@ -2040,11 +2057,11 @@ function wireMunicipalLogin() {
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "Verifying…"; }
     msgEl.innerHTML = `<div class="govMsg govMsg--info">Authenticating credentials… Please wait.</div>`;
 
-    // Same session mechanism as wireAuthorityAuth → redirects to authority-dashboard
+    // Municipal role session → redirects to municipal-dashboard (separate from authority)
     setTimeout(() => {
-      storage.setSession({ role: "authority", authorityId, department: dept });
-      msgEl.innerHTML = `<div class="govMsg govMsg--success">✓ Access Granted. Redirecting to dashboard…</div>`;
-      setTimeout(() => navigate("/authority-dashboard"), 600);
+      storage.setSession({ role: "municipal", authorityId, department: dept });
+      msgEl.innerHTML = `<div class="govMsg govMsg--success">✓ Access Granted. Redirecting to Municipal Dashboard…</div>`;
+      setTimeout(() => navigate("/municipal-dashboard"), 600);
     }, 800);
   });
 }
@@ -3046,3 +3063,690 @@ function wireAuthorityReports() {
   if (!requireRole("authority", "/authority-login")) return;
 }
 
+// ============================================================
+// MUNICIPAL DASHBOARD — Separate UI theme, same components
+// All functions prefixed "Municipal" / "munDash" to avoid name
+// collisions with the existing Authority dashboard functions.
+// ============================================================
+
+/**
+ * requireMunicipal — guard for municipal-only routes.
+ * Redirects to /municipal-login if session role is not "municipal".
+ */
+function requireMunicipal() {
+  const s = storage.getSession();
+  if (!s || s.role !== "municipal") {
+    navigate("/municipal-login");
+    return false;
+  }
+  return true;
+}
+
+/**
+ * renderMunicipalDashboardShell
+ * Government-style layout wrapper (white header, navy sidebar, grey bg).
+ * Uses the same content HTML as the Authority dashboard — only the
+ * outer chrome differs.
+ */
+function renderMunicipalDashboardShell({ activePath, title, subtitle, contentHtml, session }) {
+  const navItems = [
+    { label: "Dashboard",  path: "/municipal-dashboard",  iconName: "shield" },
+    { label: "Analytics",  path: "/municipal-analytics",  iconName: "spark"  },
+    { label: "Reports",    path: "/municipal-reports",    iconName: "filter" },
+  ];
+
+  const dept = session?.department || "Municipal Officer";
+  const userId = session?.authorityId || "—";
+
+  return `
+  <div class="munPage" role="document">
+
+    <!-- ═══════════════ MUNICIPAL HEADER ═══════════════ -->
+    <header class="munHdr" role="banner">
+      <div class="munHdr__inner">
+        <div class="munHdr__brand">
+          <div class="munHdr__emblem" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+              <circle cx="32" cy="32" r="30" stroke="#163A63" stroke-width="2.5" fill="#f7f3e8"/>
+              <circle cx="32" cy="32" r="22" stroke="#163A63" stroke-width="1.5" fill="none"/>
+              <path d="M22 44 L22 28 L32 20 L42 28 L42 44 Z" fill="#163A63" opacity="0.15"/>
+              <rect x="27" y="36" width="10" height="8" rx="1" fill="#163A63" opacity="0.7"/>
+              <rect x="20" y="44" width="24" height="2" rx="0.5" fill="#163A63"/>
+              <path d="M32 20 L32 14" stroke="#c47f17" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="32" cy="13" r="2" fill="#c47f17"/>
+              <path d="M18 31 Q32 25 46 31" stroke="#163A63" stroke-width="1" fill="none" opacity="0.5"/>
+              <text x="32" y="56" text-anchor="middle" font-size="5" fill="#163A63" font-family="serif" font-weight="bold">सत्यमेव जयते</text>
+            </svg>
+          </div>
+          <div class="munHdr__titles">
+            <div class="munHdr__corp">SMART CITY INTELLIGENCE PLATFORM</div>
+            <div class="munHdr__dept">MUNICIPAL CORPORATION – CIVIC SERVICES ADMINISTRATION</div>
+            <div class="munHdr__sub">Government of India · Municipal Officer Portal</div>
+          </div>
+        </div>
+        <div class="munHdr__user">
+          <div class="munHdr__userInfo">
+            <div class="munHdr__userName">${escapeHtml(userId)}</div>
+            <div class="munHdr__userDept">${escapeHtml(dept)}</div>
+          </div>
+          <button class="munHdr__logout" id="munLogoutBtn" type="button">
+            ${icon("logout")} Logout
+          </button>
+        </div>
+      </div>
+      <div class="munHdr__stripe" aria-hidden="true">
+        <div class="munHdr__stripe-saffron"></div>
+        <div class="munHdr__stripe-white"></div>
+        <div class="munHdr__stripe-green"></div>
+      </div>
+    </header>
+
+    <!-- ═══════════════ MUNICIPAL BODY ═══════════════ -->
+    <div class="munBody">
+
+      <!-- SIDEBAR -->
+      <aside class="munSidebar" aria-label="Municipal navigation">
+        <div class="munSidebar__roleTag">
+          ${icon("shield")}
+          <span>Municipal Officer</span>
+        </div>
+        <nav class="munSideNav" aria-label="Dashboard pages">
+          ${navItems.map(item => `
+            <a class="munSideNav__item ${activePath === item.path ? "is-active" : ""}"
+               href="#${item.path}"
+               ${activePath === item.path ? 'aria-current="page"' : ""}>
+              <span class="munSideNav__icon">${icon(item.iconName)}</span>
+              <span class="munSideNav__label">${escapeHtml(item.label)}</span>
+            </a>
+          `).join("")}
+        </nav>
+        <div class="munSidebar__info">
+          <div class="munSidebar__infoLabel">Platform</div>
+          <div class="munSidebar__infoVal">Smart City Intelligence</div>
+          <div class="munSidebar__infoLabel" style="margin-top:8px;">Data Mode</div>
+          <div class="munSidebar__infoVal">Mock / Prototype</div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main class="munMain" id="munMainContent" tabindex="-1">
+        <div class="munPageHead">
+          <div>
+            <div class="munPageHead__kicker">
+              ${icon("spark")} Smart City · AI Insights (mock) · Municipal Administration
+            </div>
+            <h1 class="munPageHead__title">${escapeHtml(title)}</h1>
+            <p class="munPageHead__sub">${escapeHtml(subtitle || "")}</p>
+          </div>
+        </div>
+
+        <div class="munContent">
+          ${contentHtml}
+        </div>
+      </main>
+    </div>
+
+    <!-- ═══════════════ MUNICIPAL FOOTER ═══════════════ -->
+    <footer class="munFooter" role="contentinfo">
+      <div class="munFooter__top">
+        <div class="munFooter__brand">
+          <div class="munFooter__name">Municipal Corporation</div>
+          <div class="munFooter__tagline">Smart City Intelligence Platform · Civic Services Administration</div>
+        </div>
+        <nav class="munFooter__links" aria-label="Footer navigation">
+          <a href="#/municipal-dashboard" class="munFooter__link">Privacy Policy</a>
+          <a href="#/municipal-dashboard" class="munFooter__link">Terms of Use</a>
+          <a href="#/municipal-dashboard" class="munFooter__link">Accessibility</a>
+          <a href="#/municipal-dashboard" class="munFooter__link">Contact Us</a>
+        </nav>
+      </div>
+      <div class="munFooter__bottom">
+        <p>© 2026 Municipal Corporation. All Rights Reserved. | Frontend Demo · Mock Data Only · No Backend/API</p>
+      </div>
+    </footer>
+
+  </div><!-- /.munPage -->
+  `;
+}
+
+// ----------------------------
+// Municipal Dashboard Pages
+// (Reuse exact same content logic as Authority, different shell)
+// ----------------------------
+
+function renderMunicipalDashboard() {
+  if (!requireMunicipal()) return "";
+  const s = storage.getSession();
+  const reports = storage.getReports();
+  const active = reports.filter((r) => r.status !== "Resolved" && r.status !== "Flagged");
+  const highRisk = active.filter((r) => (r.riskScore || 0) >= 75);
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const todayTs = startOfToday.getTime();
+  const resolvedToday = reports.filter((r) => r.status === "Resolved" && r.createdAt >= todayTs);
+  const falseFlagged = reports.filter((r) => r.status === "Flagged").length;
+
+  const byType = groupCount(active, (r) => r.issueType || "Unknown").sort((a, b) => b.value - a.value);
+  const incoming7 = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    const label = d.toLocaleDateString(undefined, { weekday: "short" });
+    const start = new Date(d);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(d);
+    end.setHours(23, 59, 59, 999);
+    const value = reports.filter((r) => r.createdAt >= start.getTime() && r.createdAt <= end.getTime()).length;
+    return { label: label.slice(0, 3), value: value || Math.round(4 + Math.random() * 8) };
+  });
+
+  const ranked = computeRanks(
+    active
+      .slice()
+      .sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0) || b.createdAt - a.createdAt)
+      .map((r) => ({
+        ...r,
+        confidence: r.confidence ?? clamp(Math.round(72 + Math.random() * 26), 0, 100),
+        crowdVerified: r.crowdVerified ?? Math.round(2 + Math.random() * 18),
+      })),
+  );
+
+  const zones = [
+    { label: "Ward 12", heat: 92 },
+    { label: "Ring Rd", heat: 88 },
+    { label: "Sector 18", heat: 74 },
+    { label: "Old Town", heat: 61 },
+    { label: "Tech Park", heat: 83 },
+    { label: "Station", heat: 69 },
+    { label: "Market", heat: 77 },
+    { label: "Airport", heat: 58 },
+  ];
+
+  const cityRiskRatio = active.length === 0 ? 0 : highRisk.length / active.length;
+  const cityRisk =
+    cityRiskRatio === 0
+      ? { label: "Low", level: "low", description: "City risk is calm based on current data (mock)." }
+      : cityRiskRatio < 0.35
+        ? { label: "Medium", level: "medium", description: "Some high-risk issues require attention (mock)." }
+        : { label: "High", level: "high", description: "City risk is elevated • focus on critical issues (mock)." };
+
+  const topCritical = ranked.slice(0, 3);
+
+  const contentHtml = `
+    <section class="stack">
+      <div class="card card--shimmer">
+        <div class="card__header">
+          <div>
+            <h3 class="card__title">Analytics Overview</h3>
+            <p class="card__sub">Operational snapshot for triage and response (mock data).</p>
+          </div>
+          <span class="badge">${icon("spark")} Overview</span>
+        </div>
+        <div class="card__inner">
+          <div class="rowBetween" style="margin-bottom:12px;">
+            <div>
+              <div class="muted">City Risk Status (mock)</div>
+              <div style="margin-top:6px;">
+                <span class="riskStatus riskStatus--${escapeHtml(cityRisk.level)}"><span class="riskStatus__dot"></span>${escapeHtml(cityRisk.label)} Risk</span>
+              </div>
+              <p class="card__sub" style="margin-top:6px;">${escapeHtml(cityRisk.description)}</p>
+            </div>
+            <div class="panel" style="min-width:220px;">
+              <strong>Resolved Today</strong>
+              <div class="metric" style="margin-top:6px;">
+                <div class="metric__value"><span class="mono">${escapeHtml(String(resolvedToday.length))}</span></div>
+                <div class="metric__sub">Issues successfully closed (mock)</div>
+              </div>
+            </div>
+          </div>
+          <div class="panel" style="margin-bottom:14px;">
+            <div class="rowBetween">
+              <strong>Top 3 Critical Issues</strong>
+              <span class="badge badge--flagged">${icon("flag")} Highest risk first</span>
+            </div>
+            <div class="criticalList" style="margin-top:10px;">
+              ${topCritical.length === 0
+                ? `<div class="muted">No active critical issues at the moment (mock).</div>`
+                : topCritical.map((r) => {
+                    const riskLevel = (r.riskScore || 0) >= 75 ? "high" : (r.riskScore || 0) >= 40 ? "medium" : "low";
+                    return `
+                      <div class="criticalList__item">
+                        <div class="criticalList__main">
+                          <span class="criticalList__label">${escapeHtml(r.issueType)}</span>
+                          <span class="criticalList__meta mono">${escapeHtml(r.locationQuery || r.locationText || "Unknown")}</span>
+                        </div>
+                        <span class="criticalList__risk criticalList__risk--${escapeHtml(riskLevel)}">${escapeHtml(String(r.riskScore || 0))}</span>
+                      </div>
+                    `;
+                  }).join("")
+              }
+            </div>
+          </div>
+          ${renderSummaryCards([
+            { label: "Total Active Issues", value: active.length, badge: "Active" },
+            { label: "High Risk Issues", value: highRisk.length, badge: "Risk ≥ 75" },
+            { label: "Issues Resolved Today", value: resolvedToday.length, badge: "Today" },
+            { label: "False Reports Flagged", value: falseFlagged, badge: "Flagged" },
+          ])}
+          <div class="grid grid--2" style="margin-top:16px;">
+            ${renderPieChart({ title: "Issue Type Distribution", series: byType.length ? byType : [{ key: "Pothole", value: 1 }] })}
+            ${renderLineChart({ title: "Daily Incoming Reports (last 7 days)", points: incoming7 })}
+          </div>
+          <div style="margin-top:16px;">
+            ${renderHeatmap({ title: "High-Risk Zones (Heatmap UI)", zones })}
+          </div>
+        </div>
+      </div>
+
+      <section class="grid grid--2">
+        <div class="card">
+          <div class="card__header">
+            <div>
+              <h3 class="card__title">Priority Issue Table</h3>
+              <p class="card__sub">Ranked by risk score (mock). Select a row to enable actions.</p>
+            </div>
+            <span class="badge">${icon("filter")} Priority</span>
+          </div>
+          <div class="card__inner">
+            <div class="tableWrap">
+              <table aria-label="Priority issue table">
+                <thead>
+                  <tr>
+                    <th>Priority Rank</th>
+                    <th>Issue Type</th>
+                    <th>Severity %</th>
+                    <th>Risk Score</th>
+                    <th>Location</th>
+                    <th>Confidence</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="munIssueRows">
+                  ${ranked.map((r) => `
+                    <tr data-issue-id="${escapeHtml(r.id)}">
+                      <td><span class="badge">#<span class="mono">${escapeHtml(r.priorityRank)}</span></span></td>
+                      <td>
+                        <strong>${escapeHtml(r.issueType)}</strong>
+                        <div class="tableTiny">${escapeHtml(formatDateTime(r.createdAt))}</div>
+                      </td>
+                      <td>
+                        <div class="miniProgress" aria-label="Severity ${escapeHtml(r.severity)}%">
+                          <div class="miniProgress__meta">
+                            <span class="mono">${escapeHtml(r.severity)}%</span>
+                            <span class="badge">${escapeHtml(severityToLabel(r.severity))}</span>
+                          </div>
+                          <div class="miniProgress__bar"><div style="width:${escapeHtml(clamp(r.severity, 0, 100))}%"></div></div>
+                        </div>
+                      </td>
+                      <td><span class="badge"><span class="mono">${escapeHtml(r.riskScore)}</span>/100</span></td>
+                      <td>${escapeHtml(r.locationText)}</td>
+                      <td><span class="badge"><span class="mono">${escapeHtml(r.confidence)}%</span></span></td>
+                      <td>${statusBadge(r.status)}</td>
+                    </tr>
+                  `).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card__header">
+              <div>
+                <h3 class="card__title">Issue Actions</h3>
+                <p class="card__sub">Actions are UI-only; status changes persist locally.</p>
+              </div>
+              <span class="badge">${icon("eye")} Actions</span>
+            </div>
+            <div class="card__inner">
+              <div class="panel">
+                <div class="muted">Selected issue:</div>
+                <div style="margin-top:8px;">
+                  <strong id="munSelTitle">None</strong>
+                  <div class="muted" id="munSelMeta">Select a row in the table.</div>
+                </div>
+              </div>
+              <div class="btnRow" style="margin-top:12px;">
+                <button class="btn btn--ghost" type="button" id="munViewDetailsBtn" disabled>${icon("eye")} View Details</button>
+                <button class="btn btn--ghost" type="button" id="munAssignTeamBtn" disabled>${icon("spark")} Assign Team</button>
+                <button class="btn btn--primary" type="button" id="munMarkResolvedBtn" disabled>${icon("check")} Mark as Resolved</button>
+                <button class="btn btn--violet" type="button" id="munFlagFalseBtn" disabled>${icon("flag")} Flag as False Report</button>
+              </div>
+              <div class="muted" style="margin-top:12px;">
+                Tip: "Assign Team" opens a mock confirmation modal (no backend).
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card__header">
+              <div>
+                <h3 class="card__title">Workflow hints</h3>
+                <p class="card__sub">A lightweight triage loop for high-risk issues.</p>
+              </div>
+              <span class="badge">${icon("spark")} Guide</span>
+            </div>
+            <div class="card__inner">
+              <div class="panel"><strong>1) Review</strong><div class="muted">Open details and confirm AI type + confidence.</div></div>
+              <div class="panel" style="margin-top:12px;"><strong>2) Assign</strong><div class="muted">Assign the right team (roads/sanitation/electrical).</div></div>
+              <div class="panel" style="margin-top:12px;"><strong>3) Resolve</strong><div class="muted">Mark resolved or flag false reports (mock state).</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  `;
+
+  return renderMunicipalDashboardShell({
+    activePath: "/municipal-dashboard",
+    title: "Municipal Dashboard",
+    subtitle: "Analytics overview, priority queue, and action panel (mock).",
+    contentHtml,
+    session: s,
+  });
+}
+
+function renderMunicipalAnalytics() {
+  if (!requireMunicipal()) return "";
+  const s = storage.getSession();
+  const reports = storage.getReports();
+  const active = reports.filter((r) => r.status !== "Resolved" && r.status !== "Flagged");
+  const highRisk = active.filter((r) => (r.riskScore || 0) >= 75);
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const resolvedToday = reports.filter((r) => r.status === "Resolved" && r.createdAt >= startOfToday.getTime());
+  const falseFlagged = reports.filter((r) => r.status === "Flagged").length;
+
+  const byType = groupCount(active, (r) => r.issueType || "Unknown").sort((a, b) => b.value - a.value);
+  const incoming = Array.from({ length: 10 }).map((_, i) => ({
+    label: `D${i + 1}`,
+    value: Math.round(6 + Math.random() * 10),
+  }));
+  const zones = [
+    { label: "Ward 12", heat: 92 },
+    { label: "Ring Rd", heat: 88 },
+    { label: "Sector 18", heat: 74 },
+    { label: "Old Town", heat: 61 },
+    { label: "Tech Park", heat: 83 },
+    { label: "Station", heat: 69 },
+    { label: "Market", heat: 77 },
+    { label: "Airport", heat: 58 },
+  ];
+
+  const contentHtml = `
+    ${renderSummaryCards([
+      { label: "Total Active Issues", value: active.length, badge: "Active" },
+      { label: "High Risk Issues", value: highRisk.length, badge: "Risk ≥ 75" },
+      { label: "Issues Resolved Today", value: resolvedToday.length, badge: "Today" },
+      { label: "False Reports Flagged", value: falseFlagged, badge: "Flagged" },
+    ])}
+    <div class="grid grid--2" style="margin-top:16px;">
+      ${renderPieChart({ title: "Issue Type Distribution", series: byType.length ? byType : [{ key: "Pothole", value: 1 }] })}
+      ${renderLineChart({ title: "Daily Incoming Reports", points: incoming })}
+    </div>
+    <div style="margin-top:16px;">
+      ${renderHeatmap({ title: "High-Risk Zones (Heatmap UI)", zones })}
+    </div>
+  `;
+
+  return renderMunicipalDashboardShell({
+    activePath: "/municipal-analytics",
+    title: "Municipal Analytics",
+    subtitle: "Operational analytics and high-risk zone overview (mock).",
+    contentHtml,
+    session: s,
+  });
+}
+
+function renderMunicipalReports() {
+  if (!requireMunicipal()) return "";
+  const s = storage.getSession();
+  const reports = storage.getReports().slice().sort((a, b) => (b.riskScore || 0) - (a.riskScore || 0));
+
+  const contentHtml = `
+    <div class="card">
+      <div class="card__header">
+        <div>
+          <h3 class="card__title">Reports</h3>
+          <p class="card__sub">All incoming reports (mock). Use the main dashboard for actions.</p>
+        </div>
+        <span class="badge">${icon("shield")} Municipal</span>
+      </div>
+      <div class="card__inner">
+        <div class="tableWrap">
+          <table aria-label="Municipal reports table">
+            <thead>
+              <tr>
+                <th>Issue Type</th>
+                <th>Severity</th>
+                <th>Risk</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Submitted</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reports.map((r) => `
+                <tr>
+                  <td><strong>${escapeHtml(r.issueType)}</strong></td>
+                  <td class="mono">${escapeHtml(r.severity)}%</td>
+                  <td><span class="badge"><span class="mono">${escapeHtml(r.riskScore)}</span>/100</span></td>
+                  <td>${escapeHtml(r.locationText)}</td>
+                  <td>${statusBadge(r.status)}</td>
+                  <td class="tableTiny mono">${escapeHtml(formatDateTime(r.createdAt))}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return renderMunicipalDashboardShell({
+    activePath: "/municipal-reports",
+    title: "Municipal Reports",
+    subtitle: "Full report feed (mock).",
+    contentHtml,
+    session: s,
+  });
+}
+
+// ----------------------------
+// Wiring: Municipal Dashboard
+// (Identical action logic to Authority Dashboard, different element IDs)
+// ----------------------------
+
+function wireMunicipalDashboard() {
+  if (!requireMunicipal()) return;
+
+  let selectedId = null;
+
+  const rowsBody = $("#munIssueRows");
+  const selTitle = $("#munSelTitle");
+  const selMeta  = $("#munSelMeta");
+
+  const viewBtn     = $("#munViewDetailsBtn");
+  const assignBtn   = $("#munAssignTeamBtn");
+  const resolvedBtn = $("#munMarkResolvedBtn");
+  const flagBtn     = $("#munFlagFalseBtn");
+  const logoutBtn   = $("#munLogoutBtn");
+
+  // Logout
+  logoutBtn?.addEventListener("click", () => {
+    storage.clearSession();
+    closeModal();
+    navigate("/");
+  });
+
+  if (!rowsBody) return;
+
+  function renderRows() {
+    $$("#munIssueRows tr").forEach((tr) => {
+      tr.classList.toggle("is-selected", tr.getAttribute("data-issue-id") === selectedId);
+    });
+  }
+
+  function syncSelectionUI() {
+    const reports = storage.getReports();
+    const sel = reports.find((r) => r.id === selectedId) || null;
+    if (!sel) {
+      selTitle.textContent = "None";
+      selMeta.textContent = "Select a row in the table.";
+      viewBtn.disabled = true;
+      assignBtn.disabled = true;
+      resolvedBtn.disabled = true;
+      flagBtn.disabled = true;
+      return;
+    }
+    selTitle.textContent = `${sel.issueType} • ${sel.locationQuery || "Location"}`;
+    selMeta.textContent = `Severity ${sel.severity}% • Risk ${sel.riskScore}/100 • Status ${sel.status}`;
+    viewBtn.disabled = false;
+    assignBtn.disabled = false;
+    resolvedBtn.disabled = sel.status === "Resolved" || sel.status === "Flagged";
+    flagBtn.disabled = sel.status === "Flagged";
+  }
+
+  function setStatus(id, status) {
+    const reports = storage.getReports();
+    const updated = reports.map((r) => (r.id === id ? { ...r, status } : r));
+    storage.setReports(updated);
+    if (status === "Verified" || status === "Resolved") {
+      const report = reports.find((r) => r.id === id);
+      if (report && report.reporter) updateUserPoints(report.reporter);
+    }
+  }
+
+  rowsBody.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-issue-id]");
+    if (!tr) return;
+    selectedId = tr.getAttribute("data-issue-id");
+    renderRows();
+    syncSelectionUI();
+  });
+
+  viewBtn.addEventListener("click", () => {
+    const reports = storage.getReports();
+    const sel = reports.find((r) => r.id === selectedId);
+    if (!sel) return;
+    const confidence = sel.confidence ?? clamp(Math.round(72 + Math.random() * 26), 0, 100);
+    const crowd = sel.crowdVerified ?? Math.round(2 + Math.random() * 18);
+    openModal({
+      title: "Issue details (mock)",
+      bodyHtml: `
+        <div class="stack">
+          <div class="panel">
+            <div class="rowBetween">
+              <strong>Image preview (mock)</strong>
+              <span class="badge"><span class="mono">${escapeHtml(sel.imageName || "upload.jpg")}</span></span>
+            </div>
+            <div class="divider"></div>
+            <div class="imgPreview" aria-label="Enlarged image preview (placeholder)">
+              <div class="imgPreview__ph">
+                <div class="imgPreview__mark">${icon("spark")}</div>
+                <div>
+                  <div style="font-weight:800;">${escapeHtml(sel.issueType)}</div>
+                  <div class="muted">Preview only • No real image loaded</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="rowBetween">
+              <strong>${escapeHtml(sel.issueType)}</strong>
+              ${statusBadge(sel.status)}
+            </div>
+            <div class="divider"></div>
+            <div class="rowBetween">
+              <span class="muted">Severity: <span class="mono">${escapeHtml(sel.severity)}%</span> (${escapeHtml(severityToLabel(sel.severity))})</span>
+              <span class="muted">Risk: <span class="mono">${escapeHtml(sel.riskScore)}</span>/100</span>
+            </div>
+            <div class="divider"></div>
+            <div class="rowBetween">
+              <span class="muted">AI confidence: <span class="mono">${escapeHtml(confidence)}%</span></span>
+              <span class="muted">Crowd verification: <span class="mono">${escapeHtml(crowd)}</span> votes</span>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="muted">Location</div>
+            <div style="margin-top:6px;"><span class="mono">${escapeHtml(sel.locationText)}</span></div>
+          </div>
+          <div class="panel">
+            <div class="muted">Submitted</div>
+            <div style="margin-top:6px;"><span class="mono">${escapeHtml(formatDateTime(sel.createdAt))}</span></div>
+          </div>
+        </div>
+      `,
+      actionsHtml: `<button class="btn btn--ghost" type="button" data-modal-close>Close</button>`,
+    });
+  });
+
+  assignBtn.addEventListener("click", () => {
+    const reports = storage.getReports();
+    const sel = reports.find((r) => r.id === selectedId);
+    if (!sel) return;
+    openModal({
+      title: "Assign team (mock)",
+      bodyHtml: `
+        <div class="panel">
+          <div class="rowBetween">
+            <strong>${escapeHtml(sel.issueType)}</strong>
+            ${statusBadge(sel.status)}
+          </div>
+          <div class="divider"></div>
+          <div class="muted">Selected team (dummy)</div>
+          <div style="margin-top:10px;" class="btnRow">
+            <button class="btn btn--ghost" type="button" data-team="Roads">Roads</button>
+            <button class="btn btn--ghost" type="button" data-team="Sanitation">Sanitation</button>
+            <button class="btn btn--ghost" type="button" data-team="Electrical">Electrical</button>
+          </div>
+          <div class="muted" style="margin-top:10px;">This only shows UI feedback. No backend assignment occurs.</div>
+        </div>
+      `,
+      actionsHtml: `<button class="btn btn--primary" type="button" data-modal-close>Done</button>`,
+    });
+    $("#modalRoot")?.addEventListener("click", (e) => {
+      const team = e.target?.getAttribute?.("data-team");
+      if (!team) return;
+      const meta = $("#munSelMeta");
+      if (meta) meta.textContent = `${meta.textContent} • Team: ${team}`;
+      closeModal();
+    }, { once: true });
+  });
+
+  resolvedBtn.addEventListener("click", () => {
+    if (!selectedId) return;
+    setStatus(selectedId, "Resolved");
+    render();
+  });
+
+  flagBtn.addEventListener("click", () => {
+    if (!selectedId) return;
+    setStatus(selectedId, "Flagged");
+    render();
+  });
+
+  renderRows();
+  syncSelectionUI();
+}
+
+function wireMunicipalAnalytics() {
+  if (!requireMunicipal()) return;
+  // Wire logout button in the shell
+  $("#munLogoutBtn")?.addEventListener("click", () => {
+    storage.clearSession();
+    closeModal();
+    navigate("/");
+  });
+}
+
+function wireMunicipalReports() {
+  if (!requireMunicipal()) return;
+  // Wire logout button in the shell
+  $("#munLogoutBtn")?.addEventListener("click", () => {
+    storage.clearSession();
+    closeModal();
+    navigate("/");
+  });
+}
